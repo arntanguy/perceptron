@@ -1,47 +1,17 @@
-#include <iostream>
 #include <CL/cl.hpp>
-
-#include <fstream>
-#include <string>
-
-#include <cstdlib>
-#include <ctime>
+#include <chrono>
 
 #include <initializer_list>
 #include <array>
 
+#include <iostream>
 #include "openCLUtilities.hpp"
 
 using namespace std;
 
 
-template<typename T, int size>
-struct Neuron
-{
-    T value = 0;
-    typedef std::array<T, size> weights_t;
-    weights_t weights;
-
-    //T weights[size];
-
- public:
-    template<typename... E>
-    Neuron(E... ts) : weights{ts...} { }
-    Neuron() {}
-    void display() const {
-        cout << "Value: " << value << endl;
-        cout << "Weights: ";
-        for(auto i : weights) {
-            cout << i << "\t" << endl;
-        }
-    }
-};
-
 int main()
 {
-
-    /* initialize random seed: */
-    srand (time(NULL));
 
     //get all platforms (drivers)
     vector<cl::Platform> all_platforms;
@@ -80,66 +50,49 @@ int main()
 
     cl::Program program = buildProgramFromSource(context, "../src/perceptron_layer.cl");
 
-    cl_float A[10] = {0};
-    cl_float B[10] = {0};
-    cl_float C[10] = {0};
 
-    // Input layer
-    // Weights between input layer and layer1
-    //Neuron<cl_float, 3> input_neuron({ 0.f, 1.f, 2.f });
-    //input_neuron.value = 42;
-    //Neuron<cl_float, 3> input_layer[1] { input_neuron };
+    std::chrono::time_point<std::chrono::system_clock> start, end;
+    start = std::chrono::system_clock::now();
 
-    //// Hidden layer
-    //Neuron<cl_float, 1> layer1[3] { Neuron<cl_float, 1>{1.f} , Neuron<cl_float, 1>{2.f}, Neuron<cl_float, 1>{3.f} };
-    //cout << "Host: Displaying Layer1: " << endl;
-    //for(auto i : layer1) {
-    //    cout << "Host: Neurone layer1: ";
-    //    i.display();
-    //}
-
-    //// Output layer
-    //Neuron<cl_float, 1> output_layer[1];
-
-    const int previous_size = 2;
-    const int current_size = 3;
-    cl_float in_values[previous_size] { 1., 2. };
-    cl_float in_weights[2][3] {{1., 2., 3.},
-                               {4., 5., 6.}};
-    cl_float out_values[3] {0.};
+    const int in_layer_size = 2;
+    const int out_layer_size = 3;
+    cl_float in_values[in_layer_size] { 1., 2. };
+    cl_float in_weights[in_layer_size][out_layer_size] {{1., 2., 3.},
+                                                        {4., 5., 6.}};
+    cl_float out_values[out_layer_size] {0.};
 
     // Creates buffer on the device
-    cl::Buffer buf_current_layer_size(context, CL_MEM_READ_ONLY, sizeof(cl_int));
-    cl::Buffer buf_previous_layer_size(context, CL_MEM_READ_ONLY, sizeof(cl_int));
-    cl::Buffer buf_in_values(context, CL_MEM_READ_ONLY, sizeof(cl_float) * previous_size);
-    cl::Buffer buf_in_weights(context, CL_MEM_READ_ONLY, sizeof(cl_float) * previous_size * current_size);
-    cl::Buffer buf_out_values(context, CL_MEM_READ_WRITE, sizeof(cl_float) * current_size);
+    cl::Buffer buf_out_layer_size(context, CL_MEM_READ_ONLY, sizeof(cl_int));
+    cl::Buffer buf_in_layer_size(context, CL_MEM_READ_ONLY, sizeof(cl_int));
+    cl::Buffer buf_in_values(context, CL_MEM_READ_ONLY, sizeof(cl_float) * in_layer_size);
+    cl::Buffer buf_in_weights(context, CL_MEM_READ_ONLY, sizeof(cl_float) * in_layer_size * out_layer_size);
+    cl::Buffer buf_out_values(context, CL_MEM_READ_WRITE, sizeof(cl_float) * out_layer_size);
 
     //create queue to which we will push commands for the device.
     cl::CommandQueue queue(context, default_device);
 
     // Prepare device memory for each layer
-    if(queue.enqueueWriteBuffer(buf_in_values, CL_TRUE, 0, sizeof(cl_float)*previous_size, in_values) != CL_SUCCESS)
+    if(queue.enqueueWriteBuffer(buf_in_values, CL_TRUE, 0, sizeof(cl_float)*in_layer_size, in_values) != CL_SUCCESS)
     {
-        cerr << "Error" << endl;
+        cerr << "Error while pushing data to the device" <<  endl;
         exit(0);
     }
-    if(queue.enqueueWriteBuffer(buf_in_weights, CL_TRUE, 0, sizeof(cl_float)*current_size*previous_size, in_weights) != CL_SUCCESS) {
-        cerr << "Error" << endl;
+    if(queue.enqueueWriteBuffer(buf_in_weights, CL_TRUE, 0, sizeof(cl_float)*out_layer_size*in_layer_size, in_weights) != CL_SUCCESS) {
+        cerr << "Error while pushing data to the device" <<  endl;
         exit(0);
     }
-    if(queue.enqueueWriteBuffer(buf_current_layer_size, CL_TRUE, 0, sizeof(cl_int), &current_size) != CL_SUCCESS) {
-        cerr << "Error" << endl;
+    if(queue.enqueueWriteBuffer(buf_out_layer_size, CL_TRUE, 0, sizeof(cl_int), &out_layer_size) != CL_SUCCESS) {
+        cerr << "Error while pushing data to the device" <<  endl;
         exit(0);
     }
-    if(queue.enqueueWriteBuffer(buf_previous_layer_size, CL_TRUE, 0, sizeof(cl_int), &previous_size) != CL_SUCCESS) {
-        cerr << "Error" << endl;
+    if(queue.enqueueWriteBuffer(buf_in_layer_size, CL_TRUE, 0, sizeof(cl_int), &in_layer_size) != CL_SUCCESS) {
+        cerr << "Error while pushing data to the device" <<  endl;
         exit(0);
     }
 
     //run the kernel
-    cl::KernelFunctor perceptron_kernel(cl::Kernel(program, "perceptron"), queue, cl::NullRange, cl::NDRange(3), cl::NullRange);
-    perceptron_kernel(buf_current_layer_size, buf_previous_layer_size, buf_in_values, buf_in_weights, buf_out_values);
+    cl::KernelFunctor perceptron_kernel(cl::Kernel(program, "perceptron"), queue, cl::NullRange, cl::NDRange(out_layer_size), cl::NullRange);
+    perceptron_kernel(buf_in_layer_size, buf_out_layer_size, buf_in_values, buf_in_weights, buf_out_values);
 
     //alternative way to run the kernel
     /*cl::Kernel kernel_add=cl::Kernel(program,"simple_add");
@@ -150,12 +103,20 @@ int main()
     queue.finish();*/
 
     //read result C from the device to array C
-    queue.enqueueReadBuffer(buf_out_values, CL_TRUE, 0, sizeof(cl_float)*current_size, out_values);
+    queue.enqueueReadBuffer(buf_out_values, CL_TRUE, 0, sizeof(cl_float)*out_layer_size, out_values);
+    end = std::chrono::system_clock::now();
+
     cout << "Out values for layer1: ";
     for(const auto& i : out_values) {
         cout << i << "\t";
     }
     cout << endl;
+
+    std::chrono::duration<double> elapsed_seconds = end - start;
+    std::time_t end_time = std::chrono::system_clock::to_time_t(end);
+
+    std::cout << "\n\nfinished computation at " << std::ctime(&end_time)
+              << "elapsed time: " << elapsed_seconds.count() << "s\n";
 
     return 0;
 }
