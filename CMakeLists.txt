@@ -1,0 +1,47 @@
+SET(PROJECT_NAME perceptron)
+PROJECT(${PROJECT_NAME})
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
+SET(CMAKE_INCLUDE_CURRENT_DIR TRUE)
+# Path to the cmake module path
+set(CMAKE_MODULE_PATH "/home/arnaud/programmation/CMakeModules")
+
+SET(SRC src)
+SET(INCLUDE_DIR .)
+
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+#set(CMAKE_CXX_FLAGS "-Wall -W -Werror -ansi -pedantic -g")
+set (CMAKE_CXX_FLAGS -std=c++11)
+
+
+find_package(OpenCL REQUIRED)
+
+set(LIBS
+    ${OPENCL_LIBRARIES}
+)
+
+set(INCLUDES
+    ${OPENCL_INCLUDE_DIRS}
+)
+
+message(STATUS "INCLUDES: ${INCLUDES}")
+message(STATUS "LIBS: ${LIBS}")
+
+project(${PROJECT_NAME})
+cmake_minimum_required(VERSION 2.6)
+
+
+
+### DEFINE NEEDED SOURCES
+SET(SOURCES
+${SRC}/main.cpp
+${SRC}/openCLUtilities.cpp
+)
+
+
+#### BUILD INSTRUCTIONS
+include_directories (${SRC} ${INCLUDES})
+
+### CREATE EXECUTABLE
+add_executable(${PROJECT_NAME} ${SOURCES})
+target_link_libraries(${PROJECT_NAME} ${LIBS})
