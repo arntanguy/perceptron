@@ -45,7 +45,6 @@
 */
 void kernel perceptron(global const int* in_layer_size, global const int* out_layer_size, global const float *in_value, global const float* in_weights, global float* out_values)
 {
-
     private const int global_id = get_global_id(0);
     private const int out_layer_s = *out_layer_size;
     private const int in_layer_s = *in_layer_size;
