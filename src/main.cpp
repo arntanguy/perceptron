@@ -41,11 +41,14 @@ class NeuronLayer
   T* weights = nullptr;
 
   NeuronLayer(const cl_int& in_s, NeuronLayer *out_layer) : m_in_size(in_s), m_out_layer(out_layer) {
-      values = new T(m_in_size);
+      values = new T[m_in_size];
       if(out_layer != nullptr) {
           const cl_int& out_size = out_layer->getInSize();
-          weights = new T(out_size);
+          weights = new T[out_size];
           m_out_size = out_size;
+      } else {
+          m_out_size = 0;
+          cout << "NULL PTR: " << m_out_size << endl;
       }
   }
 
@@ -54,7 +57,7 @@ class NeuronLayer
   }
 
   void setValues(std::initializer_list<T> init) {
-      if(init.size() < m_in_size) {
+      if(init.size() != m_in_size) {
           throw "Your initializer list for values exeeds the maximum size!";
       }
 
@@ -65,29 +68,35 @@ class NeuronLayer
   }
 
   void setWeights(std::initializer_list<T> init) {
-      if(m_out_layer != nullptr && init.size() < m_in_size * m_out_layer->getInSize()) {
+      cout << "size: " << m_in_size <<"," << m_out_size <<", " << m_in_size * m_out_size << ", init: " << init.size() << endl;
+      if(m_out_layer != nullptr && init.size() != m_in_size * m_out_size) {
+          cout << "in: " << m_in_size << ", out: " << m_out_size << endl;
           throw "Your initializer list for weights exeeds the maximum size!";
       }
 
+      auto it = init.begin();
       int j=0;
-      for(const auto& i: init) {
-          weights[j++] = i;
+      while(it != end(init) && j < m_in_size * m_out_size)
+      {
+          cout << *it << endl;
+          weights[j++] = *it;
+          ++it;
       }
   }
 
 
   void display() const {
-      cout << "Values: ";
+      cout << "\tValues: ";
       for(int i=0; i<m_in_size; i++) {
           cout  << values[i] << "\t" ;
       }
-      cout << "\nWeights: ";
+      cout << "\n\tWeights: ";
       if(m_out_layer != nullptr) {
-        for(int i=0; i<m_in_size*m_out_layer->getInSize(); i++) {
+        for(int i=0; i<m_in_size*m_out_size; i++) {
             cout << weights[i] << "\t" ;
         }
       } else {
-          cout << "No weights defined" << endl;
+          cout << "\tNo weights defined" << endl;
       }
   }
 
@@ -185,25 +194,38 @@ int main()
     std::chrono::time_point<std::chrono::system_clock> start, end;
     start = std::chrono::system_clock::now();
 
-    NeuronLayer<cl_float> out_layer(3, nullptr);
-    NeuronLayer<cl_float> input_layer(2, &out_layer);
-    input_layer.setValues({ 1., 2., 3.});
+    NeuronLayer<cl_float> out_layer(1, nullptr);
+    NeuronLayer<cl_float> hidden_layer(3, &out_layer);
+    NeuronLayer<cl_float> input_layer(2, &hidden_layer);
+
+    hidden_layer.setValues({0., 0., 0.});
+    hidden_layer.setWeights({1., 2., 3.});
+    input_layer.setValues({ 1., 2.});
     input_layer.setWeights({1., 2., 3.,
                            4., 5., 6.});
-    cout << "In Layer: " << endl;
+    cout << "In Layer: \n";
     input_layer.display();
-    cout << "\nOut Layer: " << endl;
+    cout << "\nHidden Layer:\n ";
+    hidden_layer.display();
+    cout << "\nOut Layer: \n";
     out_layer.display();
 
     //create queue to which we will push commands for the device.
     cl::Kernel perceptronKernel(program, "perceptron");
     cl::CommandQueue queue(context, default_device);
     input_layer.createBuffers(context);
+    hidden_layer.createBuffers(context);
     out_layer.createBuffers(context);
     input_layer.enqueueWriteBuffers(queue);
+    hidden_layer.enqueueWriteBuffers(queue);
     out_layer.enqueueWriteBuffers(queue);
 
     input_layer.run(perceptronKernel, queue);
+    hidden_layer.run(perceptronKernel, queue);
+
+    hidden_layer.enqueueReadBuffers(queue);
+    cout << "\nHidden Layer(computed): " << endl;
+    hidden_layer.display();
 
     out_layer.enqueueReadBuffers(queue);
     cout << "\nOut Layer(computed): " << endl;
