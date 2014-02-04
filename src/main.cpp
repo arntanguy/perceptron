@@ -140,31 +140,6 @@ class NeuronLayer
 
 };
 
-template<typename T>
-void runKernel(NeuronLayer<T>& input, NeuronLayer<T>& output,cl::Kernel& kernel, cl::CommandQueue& queue)
-{
-    //perceptron_kernel(buf_in_layer_size, buf_out_layer_size, buf_in_values, buf_in_weights, buf_out_values);
-}
-
-
-template<typename T, int size>
-struct Neuron
-{
-    T value = 0;
-    typedef std::array<T, size> weights_t;
-    weights_t weights;
-
-    //T weights[size];
-
- public:
-    template<typename... E>
-Neuron(E... ts) : weights{ts...} { }
-    Neuron() {}
-};
-
-
-
-
 
 int main()
 {
@@ -212,7 +187,7 @@ int main()
 
     NeuronLayer<cl_float> out_layer(3, nullptr);
     NeuronLayer<cl_float> input_layer(2, &out_layer);
-    input_layer.setValues({ 1., 2. });
+    input_layer.setValues({ 1., 2., 3.});
     input_layer.setWeights({1., 2., 3.,
                            4., 5., 6.});
     cout << "In Layer: " << endl;
