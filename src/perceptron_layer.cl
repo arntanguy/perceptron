@@ -16,6 +16,10 @@
 * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.                 *
  ******************************************************************************/
 
+float sigma(float x)
+{
+    return 1./(1. + exp(-x));
+}
 
 /**
 * @brief Computes one layer of the perceptron given the previous one and the
@@ -54,5 +58,5 @@ void kernel perceptron(global const int* in_layer_size, global const int* out_la
     for(int i=0; i < in_layer_s; i++) {
         sum += in_weights[i*out_layer_s+global_id] * in_value[i];
     }
-    out_values[global_id] = sum;
+    out_values[global_id] = sigma(sum);
 }

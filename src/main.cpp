@@ -25,126 +25,134 @@ using namespace std;
 template<typename T>
 class NeuronLayer
 {
- private:
-  cl::Buffer buf_size;
-  cl::Buffer buf_values;
-  cl::Buffer buf_weights;
+    private:
+        cl::Buffer buf_size;
+        cl::Buffer buf_values;
+        cl::Buffer buf_weights;
 
-  const cl_int m_size;
-  cl_int m_out_size = 0;
+        const cl_int m_size;
+        cl_int m_out_size = 0;
 
-  // Linked list
-  NeuronLayer* m_out_layer;
+        // Linked list
+        NeuronLayer* m_out_layer;
 
- public:
-  T* values = nullptr;
-  // Weights to the next layer
-  T* weights = nullptr;
+    public:
+        T* values = nullptr;
+        // Weights to the next layer
+        T* weights = nullptr;
 
-  NeuronLayer(const cl_int& in_s, NeuronLayer *out_layer) : m_size(in_s), m_out_layer(out_layer) {
-      values = new T[m_size];
-      if(out_layer != nullptr) {
-          const cl_int& out_size = out_layer->getInSize();
-          weights = new T[m_size*out_size];
-          m_out_size = out_size;
-      } else {
-          m_out_size = 0;
-          cout << "NULL PTR: " << m_out_size << endl;
-      }
-  }
-
-  cl_int getInSize() const {
-      return m_size;
-  }
-
-  void setValues(std::initializer_list<T> init) {
-      if(init.size() != m_size) {
-          throw "Your initializer list for values exeeds the maximum size!";
-      }
-
-      int j=0;
-      for(const auto& i: init) {
-          values[j++] = i;
-      }
-  }
-
-  void setWeights(std::initializer_list<T> init) {
-      if(m_out_layer != nullptr && init.size() != m_size * m_out_size) {
-          throw "Your initializer list for weights exeeds the maximum size!";
-      }
-
-      int j=0;
-      for(const auto& val : init)
-      {
-          weights[j++] = val;
-      }
-  }
-
-  /**
-   * @brief Prepares the buffer (host size)
-   */
-  void createBuffers(cl::Context& context)
-  {
-      // Creates buffer on the device
-      buf_size = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(cl_int));
-      buf_values = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(T) * m_size);
-      buf_weights = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(T) * m_size * m_out_size);
-  }
-
-  void enqueueWriteBuffers(cl::CommandQueue& queue)
-  {
-      // Prepare device memory for each layer
-      queue.enqueueWriteBuffer(buf_size, CL_TRUE, 0, sizeof(T), &m_size);
-      queue.enqueueWriteBuffer(buf_values, CL_TRUE, 0, sizeof(T)*m_size, values);
-      queue.enqueueWriteBuffer(buf_weights, CL_TRUE, 0, sizeof(T)*m_out_size*m_size, weights);
-  }
-
-  void enqueueReadBuffers(cl::CommandQueue& queue)
-  {
-      queue.enqueueReadBuffer(buf_values, CL_TRUE, 0, sizeof(T)*m_size, values);
-  }
-
-  // Should only be called by run (existence of last element not checked)
-  cl::Buffer getValuesBuf() const {
-      return buf_values;
-  }
-  cl::Buffer getLayerSizeBuf() const {
-      return buf_size;
-  }
-
-  void run(cl::Kernel &kernel, cl::CommandQueue& queue) {
-      if(m_out_layer != nullptr) {
-        kernel.setArg(0, buf_size);
-        kernel.setArg(1, m_out_layer->getLayerSizeBuf());
-        kernel.setArg(2, buf_values);
-        kernel.setArg(3, buf_weights);
-        kernel.setArg(4, m_out_layer->getValuesBuf());
-        cout << "Setting up kernel with ND-range " << m_out_size << endl;
-        queue.enqueueNDRangeKernel(kernel, cl::NullRange,cl::NDRange(m_out_size),cl::NullRange);
-        queue.finish();
-      } else {
-        throw "Error: no layers left!";
-      }
-  }
-
-    friend ostream& operator<< (ostream &out, const NeuronLayer& layer) {
-      out << "\tValues: ";
-      for(int i=0; i<layer.m_size; i++) {
-          out  << layer.values[i] << "\t" ;
-      }
-      out << "\n\tWeights: ";
-      if(layer.m_out_layer != nullptr) {
-        for(int i=0; i<layer.m_size*layer.m_out_size; i++) {
-            out << layer.weights[i] << "\t" ;
+        NeuronLayer(const cl_int& in_s, NeuronLayer *out_layer) : m_size(in_s), m_out_layer(out_layer) {
+            values = new T[m_size];
+            if(out_layer != nullptr) {
+                const cl_int& out_size = out_layer->getInSize();
+                weights = new T[m_size*out_size];
+                m_out_size = out_size;
+            } else {
+                m_out_size = 0;
+                cout << "NULL PTR: " << m_out_size << endl;
+            }
         }
-      } else {
-          out << "\tNo weights defined" << endl;
-      }
-      return out;
-    }
+
+        cl_int getInSize() const {
+            return m_size;
+        }
+
+        void setValues(std::initializer_list<T> init) {
+            if(init.size() != m_size) {
+                throw "Your initializer list for values exeeds the maximum size!";
+            }
+
+            int j=0;
+            for(const auto& i: init) {
+                values[j++] = i;
+            }
+        }
+
+        void setWeights(std::initializer_list<T> init) {
+            if(m_out_layer != nullptr && init.size() != m_size * m_out_size) {
+                throw "Your initializer list for weights exeeds the maximum size!";
+            }
+
+            int j=0;
+            for(const auto& val : init)
+            {
+                weights[j++] = val;
+            }
+        }
+
+        /**
+         * @brief Prepares the buffer (host size)
+         */
+        void createBuffers(cl::Context& context)
+        {
+            // Creates buffer on the device
+            buf_size = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(cl_int));
+            buf_values = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(T) * m_size);
+            buf_weights = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(T) * m_size * m_out_size);
+        }
+
+        void enqueueWriteBuffers(cl::CommandQueue& queue)
+        {
+            // Prepare device memory for each layer
+            queue.enqueueWriteBuffer(buf_size, CL_TRUE, 0, sizeof(T), &m_size);
+            queue.enqueueWriteBuffer(buf_values, CL_TRUE, 0, sizeof(T)*m_size, values);
+            queue.enqueueWriteBuffer(buf_weights, CL_TRUE, 0, sizeof(T)*m_out_size*m_size, weights);
+        }
+
+        void enqueueReadBuffers(cl::CommandQueue& queue)
+        {
+            queue.enqueueReadBuffer(buf_values, CL_TRUE, 0, sizeof(T)*m_size, values);
+        }
+
+        // Should only be called by run (existence of last element not checked)
+        cl::Buffer getValuesBuf() const {
+            return buf_values;
+        }
+        cl::Buffer getLayerSizeBuf() const {
+            return buf_size;
+        }
+
+        void run(cl::Kernel &kernel, cl::CommandQueue& queue) {
+            if(m_out_layer != nullptr) {
+                kernel.setArg(0, buf_size);
+                kernel.setArg(1, m_out_layer->getLayerSizeBuf());
+                kernel.setArg(2, buf_values);
+                kernel.setArg(3, buf_weights);
+                kernel.setArg(4, m_out_layer->getValuesBuf());
+                cout << "Setting up kernel with ND-range " << m_out_size << endl;
+                queue.enqueueNDRangeKernel(kernel, cl::NullRange,cl::NDRange(m_out_size),cl::NullRange);
+                queue.finish();
+            } else {
+                throw "Error: no layers left!";
+            }
+        }
+
+        friend ostream& operator<< (ostream &out, const NeuronLayer& layer) {
+            out << "\tValues: ";
+            for(int i=0; i<layer.m_size; i++) {
+                out  << layer.values[i] << "\t" ;
+            }
+            out << "\n\tWeights: ";
+            if(layer.m_out_layer != nullptr) {
+                for(int i=0; i<layer.m_size*layer.m_out_size; i++) {
+                    out << layer.weights[i] << "\t" ;
+                }
+            } else {
+                out << "\tNo weights defined" << endl;
+            }
+            return out;
+        }
 };
 
+template<class T>
+class Perceptron
+{
+    private:
+        NeuronLayer<T> *mLayers;
 
+    public:
+        Perceptron() {}
+};
 
 int main(int argc, char **argv)
 {
@@ -182,30 +190,26 @@ int main(int argc, char **argv)
     cl::Device default_device = all_devices[0];
     cout << "Using device: " << default_device.getInfo<CL_DEVICE_NAME>() << "\n";
 
-
     cl::Context context({default_device});
 
     cl::Program program = buildProgramFromSource(context, "../src/perceptron_layer.cl");
 
-
     std::chrono::time_point<std::chrono::system_clock> start, end;
     start = std::chrono::system_clock::now();
 
-    //NeuronLayer<cl_float> out_layer(10000, nullptr);
-    //NeuronLayer<cl_float> hidden_layer(40000, &out_layer);
-    //NeuronLayer<cl_float> input_layer(2000, &hidden_layer);
+    //NeuronLayer<cl_float> out_layer(1000, nullptr);
+    //NeuronLayer<cl_float> hidden_layer(10000, &out_layer);
+    //NeuronLayer<cl_float> input_layer(1000, &hidden_layer);
 
     NeuronLayer<cl_float> out_layer(1, nullptr);
     NeuronLayer<cl_float> hidden_layer(3, &out_layer);
-    NeuronLayer<cl_float> input_layer(4, &hidden_layer);
+    NeuronLayer<cl_float> input_layer(2, &hidden_layer);
 
     out_layer.setValues({1.});
     hidden_layer.setValues({0., 0., 0.});
-    input_layer.setValues({ 1., 2., 3., 4.});
+    input_layer.setValues({ 1., 2.});
     input_layer.setWeights({1., 2., 3.,
-                           4., 5., 6.,
-                           7., 8., 9.,
-                           10., 11., 12.});
+            4., 5., 6.});
     hidden_layer.setWeights({1., 2., 3.});
     cout << "In Layer: \n" << input_layer << endl;
     cout << "\nHidden Layer:\n " << hidden_layer << endl;
@@ -225,11 +229,11 @@ int main(int argc, char **argv)
     hidden_layer.run(perceptronKernel, queue);
 
     hidden_layer.enqueueReadBuffers(queue);
-    //cout << "\nHidden Layer(computed): " << endl;
-    //hidden_layer.display();
+
+    cout << "\nHidden Layer(computed): " << hidden_layer << endl;
 
     out_layer.enqueueReadBuffers(queue);
-    cout << "\nOut Layer(computed): \n" << out_layer << endl;
+    //cout << "\nOut Layer(computed): \n" << out_layer << endl;
 
     end = std::chrono::system_clock::now();
 
