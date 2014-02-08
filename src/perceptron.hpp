@@ -48,9 +48,6 @@ class Perceptron
                 // Move to the next layer
                 mCurrentLayer = neuronLayer;
             }
-            //cout << "After createLayer" << endl;
-            //cout << "FIRST LAYER is : " << mFirstLayer << endl;
-            cout << "after Current layer: " << mCurrentLayer << endl << endl;
             mCurrentLayerNumber++;
         }
 

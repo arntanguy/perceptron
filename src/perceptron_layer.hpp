@@ -101,7 +101,7 @@ class NeuronLayer
 
         void setValues(const std::list<T>& init) {
             if(init.size() != m_size) {
-                throw "Your initializer list for values exceeds the maximum size!";
+                throw std::runtime_error("Your initializer list for values exceeds the maximum size!");
             }
 
             int j=0;
@@ -112,7 +112,7 @@ class NeuronLayer
 
         void setWeights(const std::list<T>& weights_list) {
             if(m_out_layer != nullptr && weights_list.size() != m_size * m_out_size) {
-                throw "Your initializer list for weights exceeds the maximum size!";
+                throw std::runtime_error("Your initializer list for weights exceeds the maximum size!");
             }
 
             int j=0;
@@ -169,7 +169,7 @@ class NeuronLayer
                 queue.enqueueNDRangeKernel(kernel, cl::NullRange,cl::NDRange(m_out_size),cl::NullRange);
                 queue.finish();
             } else {
-                throw "Error: no layers left!";
+                throw std::runtime_error("Can't run kernel on a null layer!");
             }
         }
 
