@@ -1,161 +1,17 @@
 #include <CL/cl.hpp>
 #include <chrono>
 
-#include <initializer_list>
-#include <array>
+#include <list>
 
-#include <iostream>
-#include <sstream>
-#include "openCLUtilities.hpp"
+#include "perceptron.hpp"
+
 
 using namespace std;
 
 
-/**
- * @brief NeuronLayer represents one of the perceptron neuron layers.
- * Due to GPU limitation regarding dynamic pointers within structures, it is
- * strucured to closely match the opencl kernel implementation.
- * The data structures are composed of
- * - an array of values, each value representing the internal value of one
- *   neuron in the layer
- * - An array of weights. A "line" i in the array represents the weights for
- *   the neuron i.
- * See the opencl Kernel implementation for more details
- */
-template<typename T>
-class NeuronLayer
-{
-    private:
-        cl::Buffer buf_size;
-        cl::Buffer buf_values;
-        cl::Buffer buf_weights;
-
-        const cl_int m_size;
-        cl_int m_out_size = 0;
-
-        // Linked list
-        NeuronLayer* m_out_layer;
-
-    public:
-        T* values = nullptr;
-        // Weights to the next layer
-        T* weights = nullptr;
-
-        NeuronLayer(const cl_int& in_s, NeuronLayer *out_layer) : m_size(in_s), m_out_layer(out_layer) {
-            values = new T[m_size];
-            if(out_layer != nullptr) {
-                const cl_int& out_size = out_layer->getInSize();
-                weights = new T[m_size*out_size];
-                m_out_size = out_size;
-            } else {
-                m_out_size = 0;
-                cout << "NULL PTR: " << m_out_size << endl;
-            }
-        }
-
-        cl_int getInSize() const {
-            return m_size;
-        }
-
-        void setValues(std::initializer_list<T> init) {
-            if(init.size() != m_size) {
-                throw "Your initializer list for values exeeds the maximum size!";
-            }
-
-            int j=0;
-            for(const auto& i: init) {
-                values[j++] = i;
-            }
-        }
-
-        void setWeights(std::initializer_list<T> init) {
-            if(m_out_layer != nullptr && init.size() != m_size * m_out_size) {
-                throw "Your initializer list for weights exeeds the maximum size!";
-            }
-
-            int j=0;
-            for(const auto& val : init)
-            {
-                weights[j++] = val;
-            }
-        }
-
-        /**
-         * @brief Prepares the buffer (host size)
-         */
-        void createBuffers(cl::Context& context)
-        {
-            // Creates buffer on the device
-            buf_size = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(cl_int));
-            buf_values = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(T) * m_size);
-            buf_weights = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(T) * m_size * m_out_size);
-        }
-
-        void enqueueWriteBuffers(cl::CommandQueue& queue)
-        {
-            // Prepare device memory for each layer
-            queue.enqueueWriteBuffer(buf_size, CL_TRUE, 0, sizeof(T), &m_size);
-            queue.enqueueWriteBuffer(buf_values, CL_TRUE, 0, sizeof(T)*m_size, values);
-            queue.enqueueWriteBuffer(buf_weights, CL_TRUE, 0, sizeof(T)*m_out_size*m_size, weights);
-        }
-
-        void enqueueReadBuffers(cl::CommandQueue& queue)
-        {
-            queue.enqueueReadBuffer(buf_values, CL_TRUE, 0, sizeof(T)*m_size, values);
-        }
-
-        // Should only be called by run (existence of last element not checked)
-        cl::Buffer getValuesBuf() const {
-            return buf_values;
-        }
-        cl::Buffer getLayerSizeBuf() const {
-            return buf_size;
-        }
-
-        void run(cl::Kernel &kernel, cl::CommandQueue& queue) {
-            if(m_out_layer != nullptr) {
-                kernel.setArg(0, buf_size);
-                kernel.setArg(1, m_out_layer->getLayerSizeBuf());
-                kernel.setArg(2, buf_values);
-                kernel.setArg(3, buf_weights);
-                kernel.setArg(4, m_out_layer->getValuesBuf());
-                cout << "Setting up kernel with ND-range " << m_out_size << endl;
-                queue.enqueueNDRangeKernel(kernel, cl::NullRange,cl::NDRange(m_out_size),cl::NullRange);
-                queue.finish();
-            } else {
-                throw "Error: no layers left!";
-            }
-        }
-
-        friend ostream& operator<< (ostream &out, const NeuronLayer& layer) {
-            out << "\tValues: ";
-            for(int i=0; i<layer.m_size; i++) {
-                out  << layer.values[i] << "\t" ;
-            }
-            out << "\n\tWeights: ";
-            if(layer.m_out_layer != nullptr) {
-                for(int i=0; i<layer.m_size*layer.m_out_size; i++) {
-                    out << layer.weights[i] << "\t" ;
-                }
-            } else {
-                out << "\tNo weights defined" << endl;
-            }
-            return out;
-        }
-};
-
-template<class T>
-class Perceptron
-{
-    private:
-        NeuronLayer<T> *mLayers;
-
-    public:
-        Perceptron() {}
-};
-
 int main(int argc, char **argv)
 {
+    std::srand(std::time(0)); // use current time as seed for random generator
 
     //get all platforms (drivers)
     vector<cl::Platform> all_platforms;
@@ -201,38 +57,65 @@ int main(int argc, char **argv)
     //NeuronLayer<cl_float> hidden_layer(10000, &out_layer);
     //NeuronLayer<cl_float> input_layer(1000, &hidden_layer);
 
-    NeuronLayer<cl_float> out_layer(1, nullptr);
-    NeuronLayer<cl_float> hidden_layer(3, &out_layer);
-    NeuronLayer<cl_float> input_layer(2, &hidden_layer);
-
-    out_layer.setValues({1.});
-    hidden_layer.setValues({0., 0., 0.});
-    input_layer.setValues({ 1., 2.});
-    input_layer.setWeights({1., 2., 3.,
-            4., 5., 6.});
-    hidden_layer.setWeights({1., 2., 3.});
-    cout << "In Layer: \n" << input_layer << endl;
-    cout << "\nHidden Layer:\n " << hidden_layer << endl;
-    cout << "\nOut Layer: \n" << out_layer << endl;
-
     //create queue to which we will push commands for the device.
     cl::Kernel perceptronKernel(program, "perceptron");
     cl::CommandQueue queue(context, default_device);
-    input_layer.createBuffers(context);
-    hidden_layer.createBuffers(context);
-    out_layer.createBuffers(context);
-    input_layer.enqueueWriteBuffers(queue);
-    hidden_layer.enqueueWriteBuffers(queue);
-    out_layer.enqueueWriteBuffers(queue);
 
-    input_layer.run(perceptronKernel, queue);
-    hidden_layer.run(perceptronKernel, queue);
 
-    hidden_layer.enqueueReadBuffers(queue);
+    //NeuronLayer<cl_float> input_layer(2);
+    //NeuronLayer<cl_float> hidden_layer(3);
+    //NeuronLayer<cl_float> out_layer(1);
+    ////input_layer.setOutputLayer(&hidden_layer);
+    ////hidden_layer.setOutputLayer(&out_layer);
+    ////out_layer.setOutputLayer(nullptr);
 
-    cout << "\nHidden Layer(computed): " << hidden_layer << endl;
+    ////input_layer.initRandomWeights();
+    //
+    //input_layer.setValues({ 1., 2.});
+    //input_layer.setWeights({1., 2., 3.,
+    //        4., 5., 6.});
+    //hidden_layer.setValues({0., 1., 2.});
+    //out_layer.setValues({1.});
+    //hidden_layer.setWeights({1., 1., 1.});
+    ////cout << "In Layer: \n" << input_layer << endl;
+    ////cout << "\nHidden Layer:\n " << hidden_layer << endl;
+    ////cout << "\nOut Layer: \n" << out_layer << endl;
 
-    out_layer.enqueueReadBuffers(queue);
+    //input_layer.createBuffers(context);
+    //hidden_layer.createBuffers(context);
+    //out_layer.createBuffers(context);
+
+    ////input_layer.enqueueWriteBuffers(queue);
+    ////hidden_layer.enqueueWriteBuffers(queue);
+    ////out_layer.enqueueWriteBuffers(queue);
+
+    Perceptron<cl_float> perceptron(context, queue);
+    //// Creates the layers, reserve data on GPU
+    perceptron.createLayer(2);
+    perceptron.createLayer(3);
+    perceptron.createLayer(1);
+
+    // Define weights between layers
+    std::list<std::list<cl_float>> weights = {{1., 2., 3., 4., 5., 6.}, // between input layer and hidden_layer1
+                                              {1., 2., 3.}}; // between hidden layer 1 and out layer
+    perceptron.setWeights(weights);
+    perceptron.setInputValues({1., 2.});
+
+    //// Upload all of the data on the GPU
+    perceptron.upload();
+    perceptron.displayAll();
+    //// Run the kernel 
+    perceptron.run(perceptronKernel);
+
+
+    //input_layer.enqueueRun(perceptronKernel, queue);
+    //hidden_layer.enqueueRun(perceptronKernel, queue);
+
+    //input_layer.enqueueReadBuffers(queue);
+    //cout << "\nInput Layer(computed): " << input_layer << endl;
+    //hidden_layer.enqueueReadBuffers(queue);
+    //cout << "\nHidden Layer(computed): " << hidden_layer << endl;
+    //out_layer.enqueueReadBuffers(queue);
     //cout << "\nOut Layer(computed): \n" << out_layer << endl;
 
     end = std::chrono::system_clock::now();

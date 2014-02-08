@@ -58,5 +58,6 @@ void kernel perceptron(global const int* in_layer_size, global const int* out_la
     for(int i=0; i < in_layer_s; i++) {
         sum += in_weights[i*out_layer_s+global_id] * in_value[i];
     }
-    out_values[global_id] = sigma(sum);
+    //out_values[global_id] = sigma(sum);
+    out_values[global_id] = sum;
 }

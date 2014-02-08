@@ -10,8 +10,8 @@ SET(INCLUDE_DIR .)
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
-#set(CMAKE_CXX_FLAGS "-Wall -W -Werror -ansi -pedantic -g")
-set (CMAKE_CXX_FLAGS -std=c++11)
+set(CMAKE_CXX_FLAGS "-std=c++11 -Wall -g")
+#set (CMAKE_CXX_FLAGS -std=c++11)
 
 
 find_package(OpenCL REQUIRED)
