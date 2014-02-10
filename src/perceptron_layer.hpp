@@ -44,10 +44,14 @@ class NeuronLayer
         cl_int m_out_size = 0;
 
         // Linked list
+        // Next layer
         NLayer* m_out_layer;
+        // Previous layer
+        NLayer* m_in_layer;
 
-        void init(const cl_int& in_s, NeuronLayer *out_layer) 
+        void init(const cl_int& in_s, NeuronLayer *in_layer, NeuronLayer *out_layer) 
         {
+            m_in_layer = in_layer;
             m_out_layer = out_layer;
             // Init values to 0
             values = new T[m_size]();
@@ -58,12 +62,16 @@ class NeuronLayer
         // Weights to the next layer
         T* weights = nullptr;
 
-        NeuronLayer(const cl_int& in_s, NeuronLayer *out_layer) : m_size(in_s) {
-            init(in_s, out_layer);
+        NeuronLayer(const cl_int& in_s, NeuronLayer* in_layer, NeuronLayer *out_layer) : m_size(in_s) {
+            init(in_s, in_layer, out_layer);
         }
 
         NeuronLayer(const cl_int& in_s) : m_size(in_s), m_out_size(0) {
-            init(in_s, nullptr);
+            init(in_s, nullptr, nullptr);
+        }
+
+        void setInputLayer(NeuronLayer *in_layer) {
+            m_in_layer = in_layer;
         }
 
         void setOutputLayer(NeuronLayer *out_layer) {
@@ -92,6 +100,10 @@ class NeuronLayer
 
         NLayer* getNextLayer() {
             return m_out_layer;
+        }
+        
+        NLayer* getPreviousLayer() {
+            return m_in_layer;
         }
 
         cl_int getSize() const {

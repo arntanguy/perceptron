@@ -82,6 +82,15 @@ int main(int argc, char **argv)
     cout << "Result: " << *perceptron.getLastLayer() << endl;
 
 
+    cout << "Reverse order" << endl;
+    NeuronLayer<cl_float> *layer = perceptron.getLastLayer();
+    while( layer != nullptr) {
+        cout << layer << endl;
+        cout << *layer << endl;
+        layer = layer->getPreviousLayer();
+    }
+
+
     end = std::chrono::system_clock::now();
 
 

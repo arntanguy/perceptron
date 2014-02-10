@@ -2,8 +2,11 @@
 #define __PERCEPTRON_HPP__
 
 #include "perceptron_layer.hpp"
+#include "debug/prettyprint.hpp"
 
 #include <list>
+#include <vector>
+#include <random>
 
 template<typename T>
 class Perceptron
@@ -46,6 +49,7 @@ class Perceptron
                 mCurrentLayer->initRandomWeights();
                 mCurrentLayer->createBuffers(mContext);
                 // Move to the next layer
+                neuronLayer->setInputLayer(mCurrentLayer);
                 mCurrentLayer = neuronLayer;
             }
             mCurrentLayerNumber++;
@@ -115,6 +119,25 @@ class Perceptron
 
         NeuronLayer<T>* getLastLayer() {
             return mCurrentLayer;
+        }
+
+        void train(const std::vector<std::list<T>>& training_in_values, const std::vector<std::list<T>>& training_out_values) {
+            if(training_in_values.size() != training_out_values.size()) {
+                throw std::runtime_error("Perceptron::Train - Training input and output size must match!");
+            }
+            std::random_device rd; // obtain a random number from hardware
+            std::mt19937 eng(rd()); // seed the generator
+            std::uniform_int_distribution<int> distr(0, training_in_values.size());
+
+            bool train = true;
+            while(train) {
+                // Pick random values in training set
+                int rand_training_set = distr(eng);
+                const std::list<T>& training_in = training_in_values[rand_training_set];
+                const std::list<T>& training_out = training_out_values[rand_training_set];
+                cout << "Training with input " << training_in << endl;
+                cout << "Training with output " << training_out << endl;
+            }
         }
 };
 
