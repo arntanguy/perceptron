@@ -86,7 +86,6 @@ class NeuronLayer
             std::uniform_real_distribution<float> distr(min, max);
 
             for(int i=0; i< m_size * m_out_size; i++) {
-                std::cout << distr(eng) << ' '; // generate numbers 
                 weights[i] = distr(eng);
             }
         }
@@ -138,7 +137,6 @@ class NeuronLayer
         {
             std::cout << "enqueueWriteBuffers, m_size: "<< m_size<<" m_out_size: "<< m_out_size<<
                 ", weight size: "<< m_size*m_out_size<<endl;
-            cout << *this << endl;
             // Prepare device memory for each layer
             queue.enqueueWriteBuffer(buf_size, CL_TRUE, 0, sizeof(T), &m_size);
             queue.enqueueWriteBuffer(buf_values, CL_TRUE, 0, sizeof(T)*m_size, values);

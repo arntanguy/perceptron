@@ -58,10 +58,14 @@ int main(int argc, char **argv)
     cl::CommandQueue queue(context, default_device);
 
     Perceptron<cl_float> perceptron(context, queue);
-    //// Creates the layers, reserve data on GPU
+    // Creates the layers, reserve data on GPU
     perceptron.createLayer(2);
     perceptron.createLayer(3);
     perceptron.createLayer(1);
+    //perceptron.createLayer(100000);
+    //perceptron.createLayer(10000);
+    //perceptron.createLayer(316);
+    //perceptron.createLayer(17);
 
     // Define weights between layers
     std::list<std::list<cl_float>> weights = {{1., 2., 3., 4., 5., 6.}, // between input layer and hidden_layer1
@@ -71,9 +75,11 @@ int main(int argc, char **argv)
 
     //// Upload all of the data on the GPU
     perceptron.upload();
-    perceptron.displayAll();
     //// Run the kernel 
     perceptron.run(perceptronKernel);
+
+
+    cout << "Result: " << *perceptron.getLastLayer() << endl;
 
 
     end = std::chrono::system_clock::now();

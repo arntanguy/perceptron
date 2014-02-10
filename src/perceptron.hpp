@@ -90,7 +90,7 @@ class Perceptron
             while(layer->getNextLayer() != nullptr) {
                 layer->enqueueRun(kernel, mQueue);
                 layer->getNextLayer()->enqueueReadBuffers(mQueue);
-                cout << "\nLayer " << layer->getNextLayer() << " (computed): \n" << *layer->getNextLayer() << endl;
+                //cout << "\nLayer " << layer->getNextLayer() << " (computed): \n" << *layer->getNextLayer() << endl;
                 layer = layer->getNextLayer();
             }
         }
