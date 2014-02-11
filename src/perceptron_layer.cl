@@ -21,12 +21,53 @@ float sigma(float x)
     return 1./(1. + exp(-x));
 }
 
+/**
+ * @brief Computes delta for all of the output neurons.
+ * 
+ * @param layer_size
+ *      Size of the output layer
+ * @param values
+ *      Values of the output layer
+ * @param expected_values
+ *      Values expected as output of the perceptron
+ * @param delta
+ *      Output of the function: computes the delta needed for the training algorithm
+ **/
 void kernel perceptron_train_output_layer(global const int* layer_size, global const float* values, global const float* expected_values, global float* delta)
 {
-    private float ci = expected_values[get_global_id(0)];
-    private float oi = values[get_global_id(0)];
+    private const float ci = expected_values[get_global_id(0)];
+    private const float oi = values[get_global_id(0)];
     // Equivalent to sigma'(yi) * (ci-oi)
     delta[get_global_id(0)] = oi * (1-oi) * (ci-oi); 
+}
+
+/**
+ * @brief Computes delta for all layers (but the last one) 
+ * 
+ * @param current_layer_size
+ *      Size of the layer
+ * @param succ_layer_size
+ *      Size of the output layer of current layer 
+ * @param current_layer_values 
+ *      Values expected as output of the perceptron
+ * @param delta
+ *      Output of the function: computes the delta needed for the training algorithm
+ **/
+void kernel perceptron_train_backpropagate(global const int* current_layer_size, global const int* succ_layer_size, global const float* current_layer_values, global const float* succ_layer_delta, global const float *weights, global float* current_delta_out, global const float* succ_layer_delta_i)
+{
+    printf("\nperceptron_train_backpropagate, layer_size: %i\n", *current_layer_size);
+    private const int i = get_global_id(0);
+    private const float oi = current_layer_values[get_global_id(0)];
+    private const int succ_size = *succ_layer_size;
+    private const int weight_offset = i * succ_size;
+
+    private float sum = 0;
+    for(int k=0; k < *succ_layer_size; k++) {
+        printf("\nweight: %f\n", weights[weight_offset + k]);
+        //sum += succ_layer_delta_i[offset] * weights[i * succ_size +k];
+        sum += succ_layer_delta_i[k] * weights[weight_offset + k];
+    }
+    current_delta_out[i] = oi*(1-oi) * sum;
 }
 
 /**

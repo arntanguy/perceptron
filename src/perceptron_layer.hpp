@@ -41,6 +41,8 @@ class NeuronLayer
         cl::Buffer buf_values;
         cl::Buffer buf_weights;
 
+        int mLayerNumber = 0;
+
         const cl_int m_size;
         cl_int m_out_size = 0;
 
@@ -72,6 +74,9 @@ class NeuronLayer
             init(in_s, nullptr, nullptr);
         }
 
+        void setNumber(int id) {
+            mLayerNumber = id;
+        }
         void setInputLayer(NeuronLayer *in_layer) {
             m_in_layer = in_layer;
         }
@@ -202,7 +207,25 @@ class NeuronLayer
             }
         }
 
+        void enqueueTrainBackpropagate(cl::Kernel &kernel, cl::Buffer& delta_out_buf, cl::Buffer& succ_delta_buf) {
+            if(m_out_layer != nullptr) {
+                kernel.setArg(0, buf_size);
+                kernel.setArg(1, m_out_layer->getLayerSizeBuf());
+                kernel.setArg(2, buf_values);
+                kernel.setArg(3, m_out_layer->getValuesBuf());
+                kernel.setArg(4, buf_weights);
+                kernel.setArg(5, delta_out_buf);
+                kernel.setArg(6, succ_delta_buf);
+                cout  << "PerceptronLayer::enqueueTrainBackpropagate - running kernel" << endl;
+                command_queue.enqueueNDRangeKernel(kernel, cl::NullRange,cl::NDRange(m_size),cl::NullRange);
+                command_queue.finish();
+            } else {
+                throw std::runtime_error("Can't run kernel on a null layer!");
+            }
+        }
+
         friend ostream& operator<< (ostream &out, const NeuronLayer& layer) {
+            out << "Displaying Layer " << layer.mLayerNumber << endl;
             out << "\tValues: ";
             for(int i=0; i<layer.m_size; i++) {
                 out  << layer.values[i] << "\t" ;

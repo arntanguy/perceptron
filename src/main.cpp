@@ -57,6 +57,7 @@ int main(int argc, char **argv)
     cl::Kernel perceptronKernel(program, "perceptron");
     // Training
     cl::Kernel perceptronTrainOutputKernel(program, "perceptron_train_output_layer");
+    cl::Kernel perceptronTrainBackpropagate(program, "perceptron_train_backpropagate");
 
     cl::CommandQueue queue(context, default_device);
 
@@ -71,9 +72,9 @@ int main(int argc, char **argv)
     //perceptron.createLayer(17);
 
     // Define weights between layers
-    std::list<std::list<cl_float>> weights = {{1., 2., 3., 4., 5., 6.}, // between input layer and hidden_layer1
-                                              {1., 2., 3.}}; // between hidden layer 1 and out layer
-    perceptron.setWeights(weights);
+    //std::list<std::list<cl_float>> weights = {{.1, .2, .3, .4, .5, .06}, // between input layer and hidden_layer1
+    //                                          {.1, .2, .3}}; // between hidden layer 1 and out layer
+    //perceptron.setWeights(weights);
     perceptron.setInputValues({1., 2.});
 
     //// Upload all of the data on the GPU
@@ -85,7 +86,7 @@ int main(int argc, char **argv)
     cout << "Result: " << *perceptron.getLastLayer() << endl;
 
 
-    perceptron.train(perceptronKernel, perceptronTrainOutputKernel,
+    perceptron.train(perceptronKernel, perceptronTrainOutputKernel, perceptronTrainBackpropagate,
                      {{1., 2.}, {3., 4.}},
                      {{2.}, {4.}});
 
