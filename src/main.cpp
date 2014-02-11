@@ -55,6 +55,9 @@ int main(int argc, char **argv)
 
     //create queue to which we will push commands for the device.
     cl::Kernel perceptronKernel(program, "perceptron");
+    // Training
+    cl::Kernel perceptronTrainOutputKernel(program, "perceptron_train_output_layer");
+
     cl::CommandQueue queue(context, default_device);
 
     Perceptron<cl_float> perceptron(context, queue);
@@ -82,10 +85,13 @@ int main(int argc, char **argv)
     cout << "Result: " << *perceptron.getLastLayer() << endl;
 
 
+    perceptron.train(perceptronKernel, perceptronTrainOutputKernel,
+                     {{1., 2.}, {3., 4.}},
+                     {{2.}, {4.}});
+
     cout << "Reverse order" << endl;
     NeuronLayer<cl_float> *layer = perceptron.getLastLayer();
     while( layer != nullptr) {
-        cout << layer << endl;
         cout << *layer << endl;
         layer = layer->getPreviousLayer();
     }

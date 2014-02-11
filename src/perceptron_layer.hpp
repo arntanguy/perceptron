@@ -36,12 +36,14 @@ class NeuronLayer
     typedef NeuronLayer<T> NLayer;
 
     private:
+        cl::CommandQueue command_queue;
         cl::Buffer buf_size;
         cl::Buffer buf_values;
         cl::Buffer buf_weights;
 
         const cl_int m_size;
         cl_int m_out_size = 0;
+
 
         // Linked list
         // Next layer
@@ -62,11 +64,11 @@ class NeuronLayer
         // Weights to the next layer
         T* weights = nullptr;
 
-        NeuronLayer(const cl_int& in_s, NeuronLayer* in_layer, NeuronLayer *out_layer) : m_size(in_s) {
+        NeuronLayer(const cl_int& in_s, const cl::CommandQueue& queue, NeuronLayer* in_layer, NeuronLayer *out_layer) : command_queue(queue), m_size(in_s) {
             init(in_s, in_layer, out_layer);
         }
 
-        NeuronLayer(const cl_int& in_s) : m_size(in_s), m_out_size(0) {
+        NeuronLayer(const cl_int& in_s, const cl::CommandQueue& queue) : command_queue(queue), m_size(in_s), m_out_size(0) {
             init(in_s, nullptr, nullptr);
         }
 
@@ -145,19 +147,24 @@ class NeuronLayer
             buf_weights = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(T) * m_size * m_out_size);
         }
 
-        void enqueueWriteBuffers(cl::CommandQueue& queue)
+        void enqueueWriteBuffers()
         {
             std::cout << "enqueueWriteBuffers, m_size: "<< m_size<<" m_out_size: "<< m_out_size<<
                 ", weight size: "<< m_size*m_out_size<<endl;
             // Prepare device memory for each layer
-            queue.enqueueWriteBuffer(buf_size, CL_TRUE, 0, sizeof(T), &m_size);
-            queue.enqueueWriteBuffer(buf_values, CL_TRUE, 0, sizeof(T)*m_size, values);
-            queue.enqueueWriteBuffer(buf_weights, CL_TRUE, 0, sizeof(T)*m_out_size*m_size, weights);
+            command_queue.enqueueWriteBuffer(buf_size, CL_TRUE, 0, sizeof(T), &m_size);
+            command_queue.enqueueWriteBuffer(buf_values, CL_TRUE, 0, sizeof(T)*m_size, values);
+            command_queue.enqueueWriteBuffer(buf_weights, CL_TRUE, 0, sizeof(T)*m_out_size*m_size, weights);
         }
 
-        void enqueueReadBuffers(cl::CommandQueue& queue)
+        void enqueueWriteInputBuffer(const std::vector<T>& input_values)
         {
-            queue.enqueueReadBuffer(buf_values, CL_TRUE, 0, sizeof(T)*m_size, values);
+            command_queue.enqueueWriteBuffer(buf_values, CL_TRUE, 0, sizeof(T)*m_size, input_values.data());
+        }
+
+        void enqueueReadBuffers()
+        {
+            command_queue.enqueueReadBuffer(buf_values, CL_TRUE, 0, sizeof(T)*m_size, values);
         }
 
         // Should only be called by run (existence of last element not checked)
@@ -168,7 +175,7 @@ class NeuronLayer
             return buf_size;
         }
 
-        void enqueueRun(cl::Kernel &kernel, cl::CommandQueue& queue) {
+        void enqueueRun(cl::Kernel &kernel) {
             if(m_out_layer != nullptr) {
                 kernel.setArg(0, buf_size);
                 kernel.setArg(1, m_out_layer->getLayerSizeBuf());
@@ -176,10 +183,22 @@ class NeuronLayer
                 kernel.setArg(3, buf_weights);
                 kernel.setArg(4, m_out_layer->getValuesBuf());
                 cout << "Setting up kernel with ND-range " << m_out_size << endl;
-                queue.enqueueNDRangeKernel(kernel, cl::NullRange,cl::NDRange(m_out_size),cl::NullRange);
-                queue.finish();
+                command_queue.enqueueNDRangeKernel(kernel, cl::NullRange,cl::NDRange(m_out_size),cl::NullRange);
+                command_queue.finish();
             } else {
                 throw std::runtime_error("Can't run kernel on a null layer!");
+            }
+        }
+
+        void enqueueTrainOutputLayer(cl::Kernel &kernel, cl::Buffer& expected_out_buf, cl::Buffer& delta_out_buf) {
+
+            kernel.setArg(0, buf_size);
+            kernel.setArg(1, buf_values);
+            kernel.setArg(2, expected_out_buf);
+            kernel.setArg(3, delta_out_buf);
+            command_queue.enqueueNDRangeKernel(kernel, cl::NullRange,cl::NDRange(m_size),cl::NullRange);
+            if(command_queue.finish()!= CL_SUCCESS) {
+                throw std::runtime_error("PerceptronLayer::enqueueTrainOutputLayer - command queue failed to execut");
             }
         }
 

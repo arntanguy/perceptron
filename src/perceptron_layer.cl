@@ -21,6 +21,14 @@ float sigma(float x)
     return 1./(1. + exp(-x));
 }
 
+void kernel perceptron_train_output_layer(global const int* layer_size, global const float* values, global const float* expected_values, global float* delta)
+{
+    private float ci = expected_values[get_global_id(0)];
+    private float oi = values[get_global_id(0)];
+    // Equivalent to sigma'(yi) * (ci-oi)
+    delta[get_global_id(0)] = oi * (1-oi) * (ci-oi); 
+}
+
 /**
 * @brief Computes one layer of the perceptron given the previous one and the
 * weights
@@ -58,6 +66,6 @@ void kernel perceptron(global const int* in_layer_size, global const int* out_la
     for(int i=0; i < in_layer_s; i++) {
         sum += in_weights[i*out_layer_s+global_id] * in_value[i];
     }
-    //out_values[global_id] = sigma(sum);
-    out_values[global_id] = sum;
+    out_values[global_id] = sigma(sum);
+    //out_values[global_id] = sum;
 }
