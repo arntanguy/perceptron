@@ -14,6 +14,9 @@ int main(int argc, char **argv)
     std::srand(std::time(0)); // use current time as seed for random generator
 
     //get all platforms (drivers)
+    cout << "=========" << endl;
+    cout << "Platform" << endl;
+    cout << "=========" << endl;
     vector<cl::Platform> all_platforms;
     cl::Platform::get(&all_platforms);
     if (all_platforms.size() == 0)
@@ -45,6 +48,7 @@ int main(int argc, char **argv)
     }
     cl::Device default_device = all_devices[0];
     cout << "Using device: " << default_device.getInfo<CL_DEVICE_NAME>() << "\n";
+    cout << endl << endl;
 
     cl::Context context({default_device});
 
@@ -53,11 +57,16 @@ int main(int argc, char **argv)
     std::chrono::time_point<std::chrono::system_clock> start, end;
     start = std::chrono::system_clock::now();
 
+    cout << "=====================" << endl;
+    cout << "Setting up perceptron" << endl;
+    cout << "=====================" << endl;
+
     //create queue to which we will push commands for the device.
     cl::Kernel perceptronKernel(program, "perceptron");
     // Training
     cl::Kernel perceptronTrainOutputKernel(program, "perceptron_train_output_layer");
     cl::Kernel perceptronTrainBackpropagate(program, "perceptron_train_backpropagate");
+    cl::Kernel perceptronTrainUpdateWeights(program, "perceptron_train_update_weights");
 
     cl::CommandQueue queue(context, default_device);
 
@@ -74,28 +83,51 @@ int main(int argc, char **argv)
     // Define weights between layers
     //std::list<std::list<cl_float>> weights = {{.1, .2, .3, .4, .5, .06}, // between input layer and hidden_layer1
     //                                          {.1, .2, .3}}; // between hidden layer 1 and out layer
+    //std::list<std::list<cl_float>> weights = {{1, 2, 3, 4, 5, 6}, // between input layer and hidden_layer1
+    //                                          {1, 2, 3}}; // between hidden layer 1 and out layer
     //perceptron.setWeights(weights);
     perceptron.setInputValues({1., 2.});
 
     //// Upload all of the data on the GPU
+    cout << "Uploading perceptron data to the GPU" << endl;
     perceptron.upload();
-    //// Run the kernel 
-    perceptron.run(perceptronKernel);
+    
 
+    cout << endl;
+    cout << "Perceptron before training" << endl;
+    perceptron.enqueueReadAllBuffers();
+    perceptron.displayAll();
+    cout << endl;
 
-    cout << "Result: " << *perceptron.getLastLayer() << endl;
-
-
-    perceptron.train(perceptronKernel, perceptronTrainOutputKernel, perceptronTrainBackpropagate,
+    cout << "=====================" << endl;
+    cout << "Training Perceptron" << endl; 
+    cout << "=====================" << endl;
+    perceptron.initRandomWeights();
+    perceptron.train(perceptronKernel, perceptronTrainOutputKernel,
+                     perceptronTrainBackpropagate, perceptronTrainUpdateWeights,
                      {{1., 2.}, {3., 4.}},
                      {{2.}, {4.}});
 
-    cout << "Reverse order" << endl;
-    NeuronLayer<cl_float> *layer = perceptron.getLastLayer();
-    while( layer != nullptr) {
-        cout << *layer << endl;
-        layer = layer->getPreviousLayer();
-    }
+    cout << endl;
+    cout << "After training: " << endl;
+    perceptron.enqueueReadAllBuffers();
+    perceptron.displayAll();
+
+
+    //// Run the kernel 
+    cout << endl;
+    cout << "=====================" << endl;
+    cout << "Running  perceptron" << endl;
+    cout << "=====================" << endl;
+    perceptron.run(perceptronKernel);
+
+
+    cout << endl;
+    cout << "===================" << endl;
+    cout  << "Final result: " << endl;
+    cout << "===================" << endl;
+    perceptron.enqueueReadAllBuffers();
+    perceptron.displayAll();
 
 
     end = std::chrono::system_clock::now();

@@ -70,6 +70,20 @@ void kernel perceptron_train_backpropagate(global const int* current_layer_size,
     current_delta_out[i] = oi*(1-oi) * sum;
 }
 
+void kernel perceptron_train_update_weights(global const int* in_layer_size, global const int* out_layer_size, global const float *neuron_values, global const float *delta, global float* weights)
+{
+    private const int global_id = get_global_id(0);
+    private const int out_layer_s = *out_layer_size;
+    private const int in_layer_s = *in_layer_size;
+    private const float val = neuron_values[global_id % out_layer_s];
+
+    // XXX to change
+    private const float epsilon = 1.;
+    private float sum = 0.;
+    // For each weight
+    weights[global_id] = weights[global_id] + epsilon * delta[global_id] * val; 
+}
+
 /**
 * @brief Computes one layer of the perceptron given the previous one and the
 * weights
@@ -101,7 +115,6 @@ void kernel perceptron(global const int* in_layer_size, global const int* out_la
     private const int global_id = get_global_id(0);
     private const int out_layer_s = *out_layer_size;
     private const int in_layer_s = *in_layer_size;
-    private const int offset = out_layer_s * global_id;
 
     private float sum = 0.;
     for(int i=0; i < in_layer_s; i++) {

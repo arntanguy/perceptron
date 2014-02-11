@@ -224,6 +224,23 @@ class NeuronLayer
             }
         }
 
+        void enqueueTrainUpdateWeights(cl::Kernel& kernel, cl::Buffer& delta_buf)
+        {
+            if(m_out_layer != nullptr) {
+                kernel.setArg(0, buf_size);
+                kernel.setArg(1, m_out_layer->getLayerSizeBuf());
+                kernel.setArg(2, buf_values);
+                kernel.setArg(3, m_out_layer->getValuesBuf());
+                kernel.setArg(4, delta_buf);
+                kernel.setArg(5, buf_weights);
+                cout  << "PerceptronLayer::enqueueTrainWeights - running kernel" << endl;
+                command_queue.enqueueNDRangeKernel(kernel, cl::NullRange,cl::NDRange(m_size*m_out_size),cl::NullRange);
+                command_queue.finish();
+            } else {
+                throw std::runtime_error("Can't run kernel on a null layer!");
+            }
+        }
+
         friend ostream& operator<< (ostream &out, const NeuronLayer& layer) {
             out << "Displaying Layer " << layer.mLayerNumber << endl;
             out << "\tValues: ";

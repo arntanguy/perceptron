@@ -32,20 +32,16 @@ class Perceptron
             NLayer *layer = mFirstLayer;
             while(layer->getNextLayer() != nullptr) {
                 layer->initRandomWeights();
+                layer = layer->getNextLayer();
             }
         }
 
         void createLayer(const int& size) {
-            cout << "createLayer: " << mCurrentLayerNumber << " of size " << size << endl;
-
             NLayer *neuronLayer = new NLayer(size, mQueue);
-            cout << "createLayer: " << neuronLayer << endl;
             if(mFirstLayer == nullptr) {
                 mFirstLayer = neuronLayer;
                 mCurrentLayer = mFirstLayer;
             } else {
-                cout << "Level "<<mCurrentLayerNumber << ", neuronLayer: " << neuronLayer << endl;
-                cout << mCurrentLayer << " -> " << neuronLayer << endl;
                 mCurrentLayer->setOutputLayer(neuronLayer);
                 mCurrentLayer->initRandomWeights();
                 mCurrentLayer->createBuffers(mContext);
@@ -77,8 +73,6 @@ class Perceptron
         }
 
         void upload() {
-            cout << "upload " << endl;
-
             // Create the buffers for the last layer
             mCurrentLayer->createBuffers(mContext);
 
@@ -95,20 +89,25 @@ class Perceptron
             NLayer* layer = mFirstLayer;
             while(layer->getNextLayer() != nullptr) {
                 layer->enqueueRun(kernel);
-                layer->getNextLayer()->enqueueReadBuffers();
+                //layer->getNextLayer()->enqueueReadBuffers();
                 //cout << "\nLayer " << layer->getNextLayer() << " (computed): \n" << *layer->getNextLayer() << endl;
+                layer = layer->getNextLayer();
+            }
+        }
+
+        void enqueueReadAllBuffers()
+        {
+            if(mFirstLayer == nullptr) return; 
+
+            NLayer* layer = mFirstLayer;
+            while(layer != nullptr) {
+                layer->enqueueReadBuffers();
                 layer = layer->getNextLayer();
             }
         }
 
         void displayAll() {
             NLayer* layer = mFirstLayer; 
-            while(layer != nullptr) {
-                cout << layer << " -> ";
-                layer = layer->getNextLayer();
-            }
-            cout << endl;
-            layer = mFirstLayer; 
             while(layer != nullptr) {
                 cout << *layer << endl;
                 layer = layer->getNextLayer();
@@ -123,7 +122,7 @@ class Perceptron
             return mCurrentLayer;
         }
 
-        void train(cl::Kernel& kernel, cl::Kernel& train_output_layer_kernel, cl::Kernel& train_backpropagate_kernel, const std::vector<std::vector<T>>& training_in_values, const std::vector<std::vector<T>>& training_out_values) {
+        void train(cl::Kernel& kernel, cl::Kernel& train_output_layer_kernel, cl::Kernel& train_backpropagate_kernel, cl::Kernel& train_update_weights_kernel, const std::vector<std::vector<T>>& training_in_values, const std::vector<std::vector<T>>& training_out_values) {
             // XXX: nothing to ensure weights have been initialized to [-0.5, 0.5]
             if(training_in_values.size() != training_out_values.size()) {
                 throw std::runtime_error("Perceptron::Train - Training input and output size must match!");
@@ -215,9 +214,16 @@ class Perceptron
                     layer = layer->getPreviousLayer();
                 }
 
-                
+                /**
+                 * Update the weights
+                 **/
+                layer = mFirstLayer;
+                while(layer->getNextLayer() != nullptr) {
+                    layer->enqueueTrainUpdateWeights(train_update_weights_kernel, delta_stack.top());
+                    delta_stack.pop();
+                    layer = layer->getNextLayer();
+                }
 
-                cout << endl;
             }
         }
 };
