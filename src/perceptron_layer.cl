@@ -55,7 +55,7 @@ void kernel perceptron_train_output_layer(global const int* layer_size, global c
  **/
 void kernel perceptron_train_backpropagate(global const int* current_layer_size, global const int* succ_layer_size, global const float* current_layer_values, global const float* succ_layer_delta, global const float *weights, global float* current_delta_out, global const float* succ_layer_delta_i)
 {
-    printf("\nperceptron_train_backpropagate, layer_size: %i\n", *current_layer_size);
+    //printf("\nperceptron_train_backpropagate, layer_size: %i\n", *current_layer_size);
     private const int i = get_global_id(0);
     private const float oi = current_layer_values[get_global_id(0)];
     private const int succ_size = *succ_layer_size;
@@ -63,8 +63,7 @@ void kernel perceptron_train_backpropagate(global const int* current_layer_size,
 
     private float sum = 0;
     for(int k=0; k < *succ_layer_size; k++) {
-        printf("\nweight: %f\n", weights[weight_offset + k]);
-        //sum += succ_layer_delta_i[offset] * weights[i * succ_size +k];
+        //printf("\nweight: %f\n", weights[weight_offset + k]);
         sum += succ_layer_delta_i[k] * weights[weight_offset + k];
     }
     current_delta_out[i] = oi*(1-oi) * sum;

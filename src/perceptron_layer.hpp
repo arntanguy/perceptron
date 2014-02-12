@@ -187,7 +187,7 @@ class NeuronLayer
                 kernel.setArg(2, buf_values);
                 kernel.setArg(3, buf_weights);
                 kernel.setArg(4, m_out_layer->getValuesBuf());
-                cout << "Setting up kernel with ND-range " << m_out_size << endl;
+                //cout << "Setting up kernel with ND-range " << m_out_size << endl;
                 command_queue.enqueueNDRangeKernel(kernel, cl::NullRange,cl::NDRange(m_out_size),cl::NullRange);
                 command_queue.finish();
             } else {
@@ -233,7 +233,7 @@ class NeuronLayer
                 kernel.setArg(3, m_out_layer->getValuesBuf());
                 kernel.setArg(4, delta_buf);
                 kernel.setArg(5, buf_weights);
-                cout  << "PerceptronLayer::enqueueTrainWeights - running kernel" << endl;
+                //cout  << "PerceptronLayer::enqueueTrainWeights - running kernel" << endl;
                 command_queue.enqueueNDRangeKernel(kernel, cl::NullRange,cl::NDRange(m_size*m_out_size),cl::NullRange);
                 command_queue.finish();
             } else {

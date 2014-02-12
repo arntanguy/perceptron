@@ -119,7 +119,10 @@ int main(int argc, char **argv)
     cout << "=====================" << endl;
     cout << "Running  perceptron" << endl;
     cout << "=====================" << endl;
+    perceptron.setInputValues({1,2});
     perceptron.run(perceptronKernel);
+    perceptron.enqueueReadAllBuffers();
+    //perceptron.displayAll();
 
 
     cout << endl;
