@@ -105,8 +105,8 @@ int main(int argc, char **argv)
     perceptron.initRandomWeights();
     perceptron.train(perceptronKernel, perceptronTrainOutputKernel,
                      perceptronTrainBackpropagate, perceptronTrainUpdateWeights,
-                     {{1., 2.}, {3., 4.}},
-                     {{2.}, {4.}});
+                     {{1., 0.}, {0., 1.}, {1., 1.}, {0., 0.}},
+                     {{1.}, {1.}, {0.}, {0.}});
 
     cout << endl;
     cout << "After training: " << endl;
@@ -119,7 +119,7 @@ int main(int argc, char **argv)
     cout << "=====================" << endl;
     cout << "Running  perceptron" << endl;
     cout << "=====================" << endl;
-    perceptron.setInputValues({1,2});
+    perceptron.setInputValues({1,0});
     perceptron.run(perceptronKernel);
     perceptron.enqueueReadAllBuffers();
     //perceptron.displayAll();

@@ -134,7 +134,7 @@ class Perceptron
             std::uniform_int_distribution<int> distr(0, training_in_values.size()-1);
 
             int train = 0;
-            while(train++ < 2) {
+            while(train++ < 1000) {
                 cout << endl;
                 cout << "----------------------" << endl;
                 cout << "Training iteration " << train << endl;
