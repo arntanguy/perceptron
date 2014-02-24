@@ -24,8 +24,6 @@ float sigma(float x)
 /**
  * @brief Computes delta for all of the output neurons.
  * 
- * @param layer_size
- *      Size of the output layer
  * @param values
  *      Values of the output layer
  * @param expected_values
@@ -33,7 +31,10 @@ float sigma(float x)
  * @param delta
  *      Output of the function: computes the delta needed for the training algorithm
  **/
-void kernel perceptron_train_output_layer(global const int* layer_size, global const float* values, global const float* expected_values, global float* delta)
+void kernel perceptron_train_output_layer(
+        global const float* values,
+        global const float* expected_values,
+        global float* delta)
 {
     private const float ci = expected_values[get_global_id(0)];
     private const float oi = values[get_global_id(0)];
@@ -44,8 +45,6 @@ void kernel perceptron_train_output_layer(global const int* layer_size, global c
 /**
  * @brief Computes delta for all layers (but the last one) 
  * 
- * @param current_layer_size
- *      Size of the layer
  * @param succ_layer_size
  *      Size of the output layer of current layer 
  * @param current_layer_values 
@@ -53,31 +52,47 @@ void kernel perceptron_train_output_layer(global const int* layer_size, global c
  * @param delta
  *      Output of the function: computes the delta needed for the training algorithm
  **/
-void kernel perceptron_train_backpropagate(global const int* current_layer_size, global const int* succ_layer_size, global const float* current_layer_values, global const float* succ_layer_delta, global const float *weights, global float* current_delta_out, global const float* succ_layer_delta_i)
+void kernel perceptron_train_backpropagate(
+        const int succ_layer_size,
+        global const float* current_layer_values,
+        global const float* weights,
+        global const float* succ_layer_delta_i,
+        // output
+        global float* current_delta_out
+        )
 {
-    //printf("\nperceptron_train_backpropagate, layer_size: %i\n", *current_layer_size);
     private const int i = get_global_id(0);
     private const float oi = current_layer_values[get_global_id(0)];
-    private const int succ_size = *succ_layer_size;
+    private const int succ_size = succ_layer_size;
     private const int weight_offset = i * succ_size;
 
-    private float sum = 0;
-    for(int k=0; k < *succ_layer_size; k++) {
-        //printf("\nweight: %f\n", weights[weight_offset + k]);
+    private float sum = 0.f;
+    for(int k=0; k < succ_size; k++) {
         sum += succ_layer_delta_i[k] * weights[weight_offset + k];
     }
+    printf("i: %i\n", i);
+    printf("succ_size %i\n", succ_size);
+    printf("oi %f\n", oi);
+    //printf("sum %f\n", sum);
+    //printf("delta_i %f\n", oi * (1-oi) * sum);
+    printf("\n");
     current_delta_out[i] = oi*(1-oi) * sum;
 }
 
-void kernel perceptron_train_update_weights(global const int* in_layer_size, global const int* out_layer_size, global const float *neuron_values, global const float *delta, global float* weights)
+void kernel perceptron_train_update_weights(
+        const int in_layer_size,
+        const int out_layer_size,
+        global const float *neuron_values,
+        global const float *delta,
+        global float* weights)
 {
     private const int global_id = get_global_id(0);
-    private const int out_layer_s = *out_layer_size;
-    private const int in_layer_s = *in_layer_size;
+    private const int out_layer_s = out_layer_size;
+    private const int in_layer_s = in_layer_size;
     private const float val = neuron_values[global_id % out_layer_s];
 
     // XXX to change
-    private const float epsilon = 1.;
+    private const float epsilon = 0.5;
     private float sum = 0.;
     // For each weight
     weights[global_id] = weights[global_id] + epsilon * delta[global_id] * val; 
@@ -109,11 +124,16 @@ void kernel perceptron_train_update_weights(global const int* in_layer_size, glo
 * @param out_values
 *   Computed values for the current layer
 */
-void kernel perceptron(global const int* in_layer_size, global const int* out_layer_size, global const float *in_value, global const float* in_weights, global float* out_values)
+void kernel perceptron(
+        const int in_layer_size,
+        const int out_layer_size,
+        global const float *in_value,
+        global const float* in_weights,
+        global float* out_values)
 {
     private const int global_id = get_global_id(0);
-    private const int out_layer_s = *out_layer_size;
-    private const int in_layer_s = *in_layer_size;
+    private const int out_layer_s = out_layer_size;
+    private const int in_layer_s = in_layer_size;
 
     private float sum = 0.;
     for(int i=0; i < in_layer_s; i++) {

@@ -73,7 +73,7 @@ int main(int argc, char **argv)
     Perceptron<cl_float> perceptron(context, queue);
     // Creates the layers, reserve data on GPU
     perceptron.createLayer(2);
-    perceptron.createLayer(3);
+    perceptron.createLayer(10);
     perceptron.createLayer(1);
     //perceptron.createLayer(100000);
     //perceptron.createLayer(10000);
@@ -93,16 +93,18 @@ int main(int argc, char **argv)
     perceptron.upload();
     
 
-    cout << endl;
-    cout << "Perceptron before training" << endl;
-    perceptron.enqueueReadAllBuffers();
-    perceptron.displayAll();
-    cout << endl;
 
     cout << "=====================" << endl;
     cout << "Training Perceptron" << endl; 
     cout << "=====================" << endl;
     perceptron.initRandomWeights();
+    cout << endl;
+    cout << "Perceptron before training" << endl;
+    perceptron.run(perceptronKernel);
+    perceptron.enqueueReadAllBuffers();
+    perceptron.displayAll();
+    cout << endl;
+
     perceptron.train(perceptronKernel, perceptronTrainOutputKernel,
                      perceptronTrainBackpropagate, perceptronTrainUpdateWeights,
                      {{1., 0.}, {0., 1.}, {1., 1.}, {0., 0.}},
@@ -119,11 +121,29 @@ int main(int argc, char **argv)
     cout << "=====================" << endl;
     cout << "Running  perceptron" << endl;
     cout << "=====================" << endl;
+    cout << "Running xor(1, 0)" << endl;
     perceptron.setInputValues({1,0});
     perceptron.run(perceptronKernel);
     perceptron.enqueueReadAllBuffers();
-    //perceptron.displayAll();
+    perceptron.displayAll();
 
+    cout << "Running xor(0, 1)" << endl;
+    perceptron.setInputValues({0,1});
+    perceptron.run(perceptronKernel);
+    perceptron.enqueueReadAllBuffers();
+    perceptron.displayAll();
+
+    cout << "Running xor(1, 1)" << endl;
+    perceptron.setInputValues({1,1});
+    perceptron.run(perceptronKernel);
+    perceptron.enqueueReadAllBuffers();
+    perceptron.displayAll();
+
+    cout << "Running xor(0, 0)" << endl;
+    perceptron.setInputValues({0,0});
+    perceptron.run(perceptronKernel);
+    perceptron.enqueueReadAllBuffers();
+    perceptron.displayAll();
 
     cout << endl;
     cout << "===================" << endl;

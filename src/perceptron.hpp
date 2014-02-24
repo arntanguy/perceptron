@@ -70,6 +70,7 @@ class Perceptron
             if(mFirstLayer == nullptr) throw "Perceptron::setInputValues - null layer";
 
             mFirstLayer->setValues(values);
+            mFirstLayer->uploadInputValues();
         }
 
         void upload() {
@@ -133,8 +134,23 @@ class Perceptron
             std::mt19937 eng(rd()); // seed the generator
             std::uniform_int_distribution<int> distr(0, training_in_values.size()-1);
 
+            /**
+             * Prepare buffers
+             **/
+            std::vector<cl::Buffer> delta_bufs;
+            NLayer *layer = mFirstLayer;
+            while(layer != nullptr) {
+                cout << "Creating delta buffer with " << layer->getSize() << " elements, of size " << sizeof(T) * layer->getSize() << endl;
+                delta_bufs.push_back(cl::Buffer(mContext, CL_MEM_READ_ONLY, sizeof(T) * layer->getSize()));
+                layer = layer->getNextLayer();
+            }
+            cl::Buffer& delta_out_buf = *(--end(delta_bufs)); 
+            cl::Buffer training_out_buf(mContext, CL_MEM_READ_ONLY, sizeof(T) * training_out_values.size());
+
+
+
             int train = 0;
-            while(train++ < 1000) {
+            while(train++ < 3) {
                 cout << endl;
                 cout << "----------------------" << endl;
                 cout << "Training iteration " << train << endl;
@@ -149,40 +165,33 @@ class Perceptron
                 cout << "\toutput " << rand_training_set << ": " << training_out << endl;
 
                 /**
-                 * Step 1.0: Prepare buffers
-                 **/
-                // XXX: creates buffer each time (shouldn't it be created first and used when needed
-                // To see according to how much memory available
-                // Solution simple: vector of buffers corresponding to the training set size
-                cl::Buffer training_out_buf = cl::Buffer(mContext, CL_MEM_READ_ONLY, sizeof(T) * training_out.size());
-                cl::Buffer delta_out_buf = cl::Buffer(mContext, CL_MEM_READ_WRITE, sizeof(T) * training_out.size());
-
-                /**
                  * Step 1.1: Compute output o
                  **/
                 cout << "Writing input and expected output to GPU" << endl;
                 // Write input data to GPU. Leave all other parameters unchanged
                 mFirstLayer->enqueueWriteInputBuffer(training_in);
-                mQueue.enqueueWriteBuffer(training_out_buf, CL_TRUE, 0, sizeof(T)*training_out.size(), training_out.data());
 
                 // Running perceptron kernel to compute the output layer o
                 cout << "Computing the output layer (oi)" << endl;
                 run(kernel);
-                
+
                 /**
                  * Step 1.2: Compute delta_i for the output layer
                  **/
+                // Upload expected output to GPU
+                cout << "training_out.size: " << training_out.size() << endl;
+                mQueue.enqueueWriteBuffer(training_out_buf, CL_TRUE, 0, sizeof(T)*training_out.size(), training_out.data());
                 cout << "Computing delta_i for last layer" << endl;
                 // expected out, delta
                 mCurrentLayer->enqueueTrainOutputLayer(train_output_layer_kernel, training_out_buf, delta_out_buf);
                 // XXX: just for debug
-                //T *delta_values = new T[training_out.size()];
-                //mQueue.enqueueReadBuffer(delta_out_buf, CL_TRUE, 0, sizeof(T)*training_out.size(), delta_values);
-                //cout << "delta_i = " ;
-                //for(int i=0; i<training_out.size(); i++) {
-                //    cout << delta_values[i] << ", " << endl;
-                //}
-                //cout << endl;
+                T *delta_values = new T[training_out.size()];
+                mQueue.enqueueReadBuffer(delta_out_buf, CL_TRUE, 0, sizeof(T)*training_out.size(), delta_values);
+                cout << "delta_i (output layer) = " ;
+                for(int i=0; i<training_out.size(); i++) {
+                    cout << delta_values[i] << ", " << endl;
+                }
+                cout << endl;
 
                 // Backpropagation
                 cout << endl;
@@ -190,49 +199,59 @@ class Perceptron
                 cout << "Backpropagation" << endl;
                 cout << "---------------" << endl;
                 cout << endl;
-                std::stack<cl::Buffer> delta_stack;
 
-                cl::Buffer currentDeltaBuffer;
-                cl::Buffer succDeltaBuffer = delta_out_buf;
-                //delta_stack.push(currentDeltaBuffer);
-
+                // second to last buffer first
+                int current_buf_num = delta_bufs.size()-1;
+                // Start from second to last layer and move up the layers to the first one
                 NLayer* layer = mCurrentLayer->getPreviousLayer();
                 while(layer != nullptr) {
                     // XXX: just for debug
                     layer->enqueueReadBuffers();
                     cout << *layer << endl;
 
-                    currentDeltaBuffer = cl::Buffer(mContext, CL_MEM_READ_WRITE, sizeof(T) * layer->getSize());
-
+                    cout << "current buf num: " << current_buf_num-1 << endl;
+                    cout << "succ buf num: " << current_buf_num << endl;
+                    cl::Buffer& succDeltaBuffer = delta_bufs[current_buf_num];
+                    cl::Buffer& currentDeltaBuffer = delta_bufs[--current_buf_num]; 
                     layer->enqueueTrainBackpropagate(train_backpropagate_kernel, currentDeltaBuffer, succDeltaBuffer);
-                    //T *delta_val = new T[layer->getSize()];
-                    //mQueue.enqueueReadBuffer(currentDeltaBuffer, CL_TRUE, 0, sizeof(T)*layer->getSize(), delta_val); 
-                    //cout << "delta_i = " ;
-                    //for(int i=0; i<layer->getSize(); i++) {
-                    //    cout << delta_val[i] << ", ";
-                    //}
-                    //cout << endl;
-                    //delete delta_val;
+                    cout << "retrieving with size: " << layer->getSize()  << endl;
+                    cout << "current delta buffer: " << &currentDeltaBuffer << endl;
+                    cout << "succ delta buffer: " << &succDeltaBuffer << endl;
+                    T *delta_val = new T[layer->getSize()];
+                    if(mQueue.enqueueReadBuffer(currentDeltaBuffer, CL_TRUE, 0, sizeof(T)*layer->getSize(), delta_val) != CL_SUCCESS) throw std::runtime_error("fuck");
+                    cout << "delta_i = " ;
+                    for(int i=0; i<layer->getSize(); i++) {
+                        cout << delta_val[i] << ", ";
+                    }
+                    cout << endl;
+                    delete delta_val;
 
-                    delta_stack.push(succDeltaBuffer);
-                    succDeltaBuffer = currentDeltaBuffer;
                     layer = layer->getPreviousLayer();
                 }
 
+                cout << "finished iteration" << endl;
                 /**
                  * Update the weights
                  **/
-                cout << "Updating the weights" << endl;
-                layer = mFirstLayer;
-                while(layer->getNextLayer() != nullptr) {
-                    layer->enqueueTrainUpdateWeights(train_update_weights_kernel, delta_stack.top());
-                    delta_stack.pop();
-                    layer = layer->getNextLayer();
-                }
+                //cout << "Updating the weights" << endl;
+                //layer = mFirstLayer;
+                //while(layer->getNextLayer() != nullptr) {
+                //    static int l = 0;
+                //    cout << "layer: " << l++ << endl;
+                //    // XXX segfaults here
+                //    cl::Buffer & buf = delta_stack.top();
+                //    layer->enqueueTrainUpdateWeights(train_update_weights_kernel, buf);
+                //    delta_stack.pop();
+                //    cout << "size of stack: " << delta_stack.size() << endl;
+                //    layer = layer->getNextLayer();
+                //}
+                
 
                 cout << "____________________________________________" << endl;
-
             }
+            cout << "____________________________________________" << endl;
+            cout << "___________  Training Finished      ________" << endl;
+            cout << "____________________________________________" << endl;
         }
 };
 
