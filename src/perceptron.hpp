@@ -233,18 +233,15 @@ class Perceptron
                 /**
                  * Update the weights
                  **/
-                //cout << "Updating the weights" << endl;
-                //layer = mFirstLayer;
-                //while(layer->getNextLayer() != nullptr) {
-                //    static int l = 0;
-                //    cout << "layer: " << l++ << endl;
-                //    // XXX segfaults here
-                //    cl::Buffer & buf = delta_stack.top();
-                //    layer->enqueueTrainUpdateWeights(train_update_weights_kernel, buf);
-                //    delta_stack.pop();
-                //    cout << "size of stack: " << delta_stack.size() << endl;
-                //    layer = layer->getNextLayer();
-                //}
+                cout << "Updating the weights" << endl;
+                current_buf_num = 0; 
+                layer = mFirstLayer;
+                while(layer->getNextLayer() != nullptr) {
+                    cout << "current buf: " << current_buf_num << endl;
+                    cl::Buffer & buf = delta_bufs[current_buf_num++];
+                    layer->enqueueTrainUpdateWeights(train_update_weights_kernel, buf);
+                    layer = layer->getNextLayer();
+                }
                 
 
                 cout << "____________________________________________" << endl;

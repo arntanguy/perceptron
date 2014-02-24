@@ -185,11 +185,11 @@ class NeuronLayer
         void enqueueRun(cl::Kernel &kernel) {
             if(m_out_layer != nullptr) {
                 kernel.setArg(0, m_size);
-                kernel.setArg(1, m_out_layer->getSize());
+                kernel.setArg(1, m_out_size);
                 kernel.setArg(2, buf_values);
                 kernel.setArg(3, buf_weights);
                 kernel.setArg(4, m_out_layer->getValuesBuf());
-                //cout << "Setting up kernel with ND-range " << m_out_size << endl;
+                cout << "Setting up kernel with ND-range " << m_out_size << endl;
                 command_queue.enqueueNDRangeKernel(kernel, cl::NullRange,cl::NDRange(m_out_size),cl::NullRange);
                 command_queue.finish();
             } else {
@@ -228,12 +228,10 @@ class NeuronLayer
         void enqueueTrainUpdateWeights(cl::Kernel& kernel, cl::Buffer& delta_buf)
         {
             if(m_out_layer != nullptr) {
-                kernel.setArg(0, m_size);
-                kernel.setArg(1, m_out_layer->getLayerSizeBuf());
-                kernel.setArg(2, buf_values);
-                kernel.setArg(3, m_out_layer->getValuesBuf());
-                kernel.setArg(4, delta_buf);
-                kernel.setArg(5, buf_weights);
+                kernel.setArg(0, m_out_size);
+                kernel.setArg(1, buf_values);
+                kernel.setArg(3, delta_buf);
+                kernel.setArg(4, buf_weights);
                 //cout  << "PerceptronLayer::enqueueTrainWeights - running kernel" << endl;
                 command_queue.enqueueNDRangeKernel(kernel, cl::NullRange,cl::NDRange(m_size*m_out_size),cl::NullRange);
                 command_queue.finish();
