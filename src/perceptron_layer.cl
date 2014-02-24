@@ -73,14 +73,13 @@ void kernel perceptron_train_backpropagate(
     printf("i: %i\n", i);
     printf("succ_size %i\n", succ_size);
     printf("oi %f\n", oi);
-    //printf("sum %f\n", sum);
-    //printf("delta_i %f\n", oi * (1-oi) * sum);
+    printf("sum %f\n", sum);
+    printf("delta_i %f\n", oi * (1-oi) * sum);
     printf("\n");
     current_delta_out[i] = oi*(1-oi) * sum;
 }
 
 void kernel perceptron_train_update_weights(
-        const int in_layer_size,
         const int out_layer_size,
         global const float *neuron_values,
         global const float *delta,
@@ -88,11 +87,10 @@ void kernel perceptron_train_update_weights(
 {
     private const int global_id = get_global_id(0);
     private const int out_layer_s = out_layer_size;
-    private const int in_layer_s = in_layer_size;
     private const float val = neuron_values[global_id % out_layer_s];
 
     // XXX to change
-    private const float epsilon = 0.5;
+    private const float epsilon = 1.;
     private float sum = 0.;
     // For each weight
     weights[global_id] = weights[global_id] + epsilon * delta[global_id] * val; 

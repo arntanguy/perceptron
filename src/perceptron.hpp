@@ -174,6 +174,8 @@ class Perceptron
                 // Running perceptron kernel to compute the output layer o
                 cout << "Computing the output layer (oi)" << endl;
                 run(kernel);
+                this->enqueueReadAllBuffers();
+                this->displayAll();
 
                 /**
                  * Step 1.2: Compute delta_i for the output layer
@@ -209,14 +211,9 @@ class Perceptron
                     layer->enqueueReadBuffers();
                     cout << *layer << endl;
 
-                    cout << "current buf num: " << current_buf_num-1 << endl;
-                    cout << "succ buf num: " << current_buf_num << endl;
                     cl::Buffer& succDeltaBuffer = delta_bufs[current_buf_num];
                     cl::Buffer& currentDeltaBuffer = delta_bufs[--current_buf_num]; 
                     layer->enqueueTrainBackpropagate(train_backpropagate_kernel, currentDeltaBuffer, succDeltaBuffer);
-                    cout << "retrieving with size: " << layer->getSize()  << endl;
-                    cout << "current delta buffer: " << &currentDeltaBuffer << endl;
-                    cout << "succ delta buffer: " << &succDeltaBuffer << endl;
                     T *delta_val = new T[layer->getSize()];
                     if(mQueue.enqueueReadBuffer(currentDeltaBuffer, CL_TRUE, 0, sizeof(T)*layer->getSize(), delta_val) != CL_SUCCESS) throw std::runtime_error("fuck");
                     cout << "delta_i = " ;
@@ -229,7 +226,6 @@ class Perceptron
                     layer = layer->getPreviousLayer();
                 }
 
-                cout << "finished iteration" << endl;
                 /**
                  * Update the weights
                  **/

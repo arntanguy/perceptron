@@ -73,7 +73,7 @@ int main(int argc, char **argv)
     Perceptron<cl_float> perceptron(context, queue);
     // Creates the layers, reserve data on GPU
     perceptron.createLayer(2);
-    perceptron.createLayer(10);
+    perceptron.createLayer(3);
     perceptron.createLayer(1);
     //perceptron.createLayer(100000);
     //perceptron.createLayer(10000);

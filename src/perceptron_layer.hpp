@@ -52,12 +52,14 @@ class NeuronLayer
         // Previous layer
         NLayer* m_in_layer;
 
-        void init(const cl_int& in_s, NeuronLayer *in_layer, NeuronLayer *out_layer) 
+        void init(NeuronLayer *in_layer, NeuronLayer *out_layer) 
         {
             m_in_layer = in_layer;
             m_out_layer = out_layer;
             // Init values to 0
             values = new T[m_size]();
+            // Bias
+            values[m_size-1] = 1;
             setOutputLayer(out_layer);
         }
     public:
@@ -65,12 +67,12 @@ class NeuronLayer
         // Weights to the next layer
         T* weights = nullptr;
 
-        NeuronLayer(const cl_int& in_s, const cl::CommandQueue& queue, NeuronLayer* in_layer, NeuronLayer *out_layer) : command_queue(queue), m_size(in_s) {
-            init(in_s, in_layer, out_layer);
+        NeuronLayer(const cl_int& in_s, const cl::CommandQueue& queue, NeuronLayer* in_layer, NeuronLayer *out_layer) : command_queue(queue), m_size(in_s+1) {
+            init(in_layer, out_layer);
         }
 
-        NeuronLayer(const cl_int& in_s, const cl::CommandQueue& queue) : command_queue(queue), m_size(in_s), m_out_size(0) {
-            init(in_s, nullptr, nullptr);
+        NeuronLayer(const cl_int& in_s, const cl::CommandQueue& queue) : command_queue(queue), m_size(in_s+1), m_out_size(0) {
+            init(nullptr, nullptr);
         }
 
         void setNumber(int id) {
@@ -122,7 +124,9 @@ class NeuronLayer
 
 
         void setValues(const std::list<T>& init) {
-            if(init.size() != m_size) {
+            cout << "setValues" << endl;
+            // Do not replace bias
+            if(init.size() != m_size-1) {
                 throw std::runtime_error("Your initializer list for values exceeds the maximum size!");
             }
 
@@ -130,7 +134,10 @@ class NeuronLayer
             for(const auto& i: init) {
                 values[j++] = i;
             }
+            // bias
+            values[m_size-1] = 1;
         }
+
         void uploadInputValues() {
             command_queue.enqueueWriteBuffer(buf_values, CL_TRUE, 0, sizeof(T)*m_size, values);
         }
@@ -190,7 +197,7 @@ class NeuronLayer
                 kernel.setArg(3, buf_weights);
                 kernel.setArg(4, m_out_layer->getValuesBuf());
                 cout << "Setting up kernel with ND-range " << m_out_size << endl;
-                command_queue.enqueueNDRangeKernel(kernel, cl::NullRange,cl::NDRange(m_out_size),cl::NullRange);
+                command_queue.enqueueNDRangeKernel(kernel, cl::NullRange,cl::NDRange(m_out_size-1),cl::NullRange);
                 command_queue.finish();
             } else {
                 throw std::runtime_error("Can't run kernel on a null layer!");
