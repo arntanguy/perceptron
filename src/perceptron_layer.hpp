@@ -122,6 +122,26 @@ class NeuronLayer
             return m_size * m_out_size;
         }
 
+        void setValues(const std::vector<T>& init) {
+            cout << "setValues" << endl;
+            // Do not replace bias
+            if(init.size() != m_size-1) {
+                throw std::runtime_error("Your initializer list for values exceeds the maximum size!");
+            }
+
+            int j=0;
+            for(const auto& i: init) {
+                values[j++] = i;
+            }
+            // bias
+            values[m_size-1] = 1;
+
+            cout << "FUUUUUUUUUUUUUUUUUCK" << endl;
+            for (int i=0; i<m_size; i++)
+            {
+                cout << values[i] << endl;
+            }
+        }
 
         void setValues(const std::list<T>& init) {
             cout << "setValues" << endl;
@@ -136,6 +156,12 @@ class NeuronLayer
             }
             // bias
             values[m_size-1] = 1;
+
+            //cout << "Setting value" << endl;
+            //for (int i=0; i<m_size; i++)
+            //{
+            //    cout << values[i] << endl;
+            //}
         }
 
         void uploadInputValues() {
@@ -143,7 +169,9 @@ class NeuronLayer
         }
 
         void setWeights(const std::list<T>& weights_list) {
-            if(m_out_layer != nullptr && weights_list.size() != m_size * m_out_size) {
+            cout << "MSIZE: " << m_size << endl;
+            cout << "OSIZE: " << m_out_size << endl;
+            if(m_out_layer != nullptr && weights_list.size() != m_size * (m_out_size-1)) {
                 throw std::runtime_error("Your initializer list for weights exceeds the maximum size!");
             }
 
@@ -182,17 +210,21 @@ class NeuronLayer
         void enqueueReadBuffers()
         {
             command_queue.enqueueReadBuffer(buf_values, CL_TRUE, 0, sizeof(T)*m_size, values);
+            command_queue.enqueueReadBuffer(buf_weights, CL_TRUE, 0, sizeof(T)*m_size*m_out_size, weights);
         }
 
         // Should only be called by run (existence of last element not checked)
         cl::Buffer getValuesBuf() const {
             return buf_values;
         }
+        cl::Buffer getWeightsBuf() const {
+            return buf_weights;
+        }
 
         void enqueueRun(cl::Kernel &kernel) {
             if(m_out_layer != nullptr) {
                 kernel.setArg(0, m_size);
-                kernel.setArg(1, m_out_size);
+                kernel.setArg(1, m_out_size-1);
                 kernel.setArg(2, buf_values);
                 kernel.setArg(3, buf_weights);
                 kernel.setArg(4, m_out_layer->getValuesBuf());
@@ -210,7 +242,7 @@ class NeuronLayer
             kernel.setArg(0, buf_values);
             kernel.setArg(1, expected_out_buf);
             kernel.setArg(2, delta_out_buf);
-            command_queue.enqueueNDRangeKernel(kernel, cl::NullRange,cl::NDRange(m_size),cl::NullRange);
+            command_queue.enqueueNDRangeKernel(kernel, cl::NullRange,cl::NDRange(m_size-1),cl::NullRange);
             if(command_queue.finish()!= CL_SUCCESS) {
                 throw std::runtime_error("PerceptronLayer::enqueueTrainOutputLayer - command queue failed to execut");
             }
@@ -219,13 +251,14 @@ class NeuronLayer
         void enqueueTrainBackpropagate(cl::Kernel &kernel, cl::Buffer& delta_out_buf, cl::Buffer& succ_delta_buf) {
             if(m_out_layer != nullptr) {
                 cout << "enqueueTrainBackpropagate:: m_size=" << m_size << ", m_out_layer_size= " << m_out_layer->getSize() << endl;
-                kernel.setArg(0, m_out_layer->getSize());
-                kernel.setArg(1, buf_values);
-                kernel.setArg(2, buf_weights);
-                kernel.setArg(3, succ_delta_buf);
-                kernel.setArg(4, delta_out_buf);
+                kernel.setArg(0, m_size);
+                kernel.setArg(1, m_out_layer->getSize());
+                kernel.setArg(2, buf_values);
+                kernel.setArg(3, buf_weights);
+                kernel.setArg(4, succ_delta_buf);
+                kernel.setArg(5, delta_out_buf);
                 cout  << "PerceptronLayer::enqueueTrainBackpropagate - running kernel" << endl;
-                command_queue.enqueueNDRangeKernel(kernel, cl::NullRange,cl::NDRange(m_size),cl::NullRange);
+                command_queue.enqueueNDRangeKernel(kernel, cl::NullRange,cl::NDRange(m_size-1),cl::NullRange);
                 command_queue.finish();
             } else {
                 throw std::runtime_error("Can't run kernel on a null layer!");
@@ -234,13 +267,14 @@ class NeuronLayer
 
         void enqueueTrainUpdateWeights(cl::Kernel& kernel, cl::Buffer& delta_buf)
         {
-            if(m_out_layer != nullptr) {
-                kernel.setArg(0, m_out_size);
-                kernel.setArg(1, buf_values);
-                kernel.setArg(3, delta_buf);
-                kernel.setArg(4, buf_weights);
-                //cout  << "PerceptronLayer::enqueueTrainWeights - running kernel" << endl;
-                command_queue.enqueueNDRangeKernel(kernel, cl::NullRange,cl::NDRange(m_size*m_out_size),cl::NullRange);
+            NLayer* prev_layer = getPreviousLayer();
+            if(prev_layer != nullptr) {
+                kernel.setArg(0, prev_layer->getSize());
+                kernel.setArg(1, prev_layer->getValuesBuf());
+                kernel.setArg(2, delta_buf);
+                kernel.setArg(3, prev_layer->getWeightsBuf());
+                cout  << "PerceptronLayer::enqueueTrainWeights - running kernel with NDRange " << m_size*(m_out_size-1) << endl;
+                if(command_queue.enqueueNDRangeKernel(kernel, cl::NullRange,cl::NDRange((m_size-1)*(prev_layer->getSize())),cl::NullRange) != CL_SUCCESS) throw "fuck";
                 command_queue.finish();
             } else {
                 throw std::runtime_error("Can't run kernel on a null layer!");

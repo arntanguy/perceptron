@@ -61,6 +61,7 @@ class Perceptron
                 if(layer == nullptr) throw "Null layer, you're trying to set to many weights!";
                 
                 layer->setWeights(*it);
+                layer->enqueueWriteBuffers();
                 layer = layer->getNextLayer();
             }
         }
@@ -150,7 +151,7 @@ class Perceptron
 
 
             int train = 0;
-            while(train++ < 3) {
+            while(train++ < 10000) {
                 cout << endl;
                 cout << "----------------------" << endl;
                 cout << "Training iteration " << train << endl;
@@ -158,8 +159,10 @@ class Perceptron
                 cout << endl;
                 // Pick random values in training set
                 int rand_training_set = distr(eng);
-                const std::vector<T>& training_in = training_in_values[rand_training_set];
-                const std::vector<T>& training_out = training_out_values[rand_training_set];
+                //const std::vector<T>& training_in = training_in_values[rand_training_set];
+                //const std::vector<T>& training_out = training_out_values[rand_training_set];
+                const std::vector<T>& training_in = training_in_values[(train-1)%4];
+                const std::vector<T>& training_out = training_out_values[(train-1)%4];
                 cout << "Training with:" << endl;
                 cout << "\tinput " << rand_training_set << ": " << training_in << endl;
                 cout << "\toutput " << rand_training_set << ": " << training_out << endl;
@@ -169,7 +172,8 @@ class Perceptron
                  **/
                 cout << "Writing input and expected output to GPU" << endl;
                 // Write input data to GPU. Leave all other parameters unchanged
-                mFirstLayer->enqueueWriteInputBuffer(training_in);
+                mFirstLayer->setValues(training_in);
+                mFirstLayer->uploadInputValues();
 
                 // Running perceptron kernel to compute the output layer o
                 cout << "Computing the output layer (oi)" << endl;
@@ -231,11 +235,13 @@ class Perceptron
                  **/
                 cout << "Updating the weights" << endl;
                 current_buf_num = 0; 
-                layer = mFirstLayer;
-                while(layer->getNextLayer() != nullptr) {
+                layer = mFirstLayer->getNextLayer();
+                while(layer != nullptr) {
                     cout << "current buf: " << current_buf_num << endl;
-                    cl::Buffer & buf = delta_bufs[current_buf_num++];
+                    cl::Buffer & buf = delta_bufs[++current_buf_num];
                     layer->enqueueTrainUpdateWeights(train_update_weights_kernel, buf);
+                    layer->getPreviousLayer()->enqueueReadBuffers();
+                    cout << *layer->getPreviousLayer() << endl;
                     layer = layer->getNextLayer();
                 }
                 

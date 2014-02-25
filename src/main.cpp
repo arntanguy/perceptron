@@ -73,7 +73,8 @@ int main(int argc, char **argv)
     Perceptron<cl_float> perceptron(context, queue);
     // Creates the layers, reserve data on GPU
     perceptron.createLayer(2);
-    perceptron.createLayer(3);
+    perceptron.createLayer(2);
+    perceptron.createLayer(2);
     perceptron.createLayer(1);
     //perceptron.createLayer(100000);
     //perceptron.createLayer(10000);
@@ -86,7 +87,7 @@ int main(int argc, char **argv)
     //std::list<std::list<cl_float>> weights = {{1, 2, 3, 4, 5, 6}, // between input layer and hidden_layer1
     //                                          {1, 2, 3}}; // between hidden layer 1 and out layer
     //perceptron.setWeights(weights);
-    perceptron.setInputValues({1., 2.});
+    perceptron.setInputValues({0., 0.});
 
     //// Upload all of the data on the GPU
     cout << "Uploading perceptron data to the GPU" << endl;
@@ -97,7 +98,14 @@ int main(int argc, char **argv)
     cout << "=====================" << endl;
     cout << "Training Perceptron" << endl; 
     cout << "=====================" << endl;
-    perceptron.initRandomWeights();
+    perceptron.setWeights( {{0.25, -0.25, 0.25, -0.35, 0.25, 0.25},
+                            {0.25, -0.35, -0.35, 0.15, -0.25, 0.15},
+                            {0.5, 0.5, 0.35}} );
+    //perceptron.setWeights( {{0.25, -0.35, 0.25, -0.25, 0.25,  0.25} ,
+    //                        {0.25, 0.15, -0.35,  -0.35, -0.25, 0.15},
+    //                        {0.5, 0.5, 0.35}});
+                            
+    //perceptron.initRandomWeights();
     cout << endl;
     cout << "Perceptron before training" << endl;
     perceptron.run(perceptronKernel);
@@ -107,8 +115,8 @@ int main(int argc, char **argv)
 
     perceptron.train(perceptronKernel, perceptronTrainOutputKernel,
                      perceptronTrainBackpropagate, perceptronTrainUpdateWeights,
-                     {{1., 0.}, {0., 1.}, {1., 1.}, {0., 0.}},
-                     {{1.}, {1.}, {0.}, {0.}});
+                     {{0., 0.}, {0., 1.}, {1., 0.}, {1., 1.}},
+                     {{0.}, {1.}, {1.}, {0.}});
 
     cout << endl;
     cout << "After training: " << endl;
