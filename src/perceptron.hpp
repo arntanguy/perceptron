@@ -151,7 +151,7 @@ class Perceptron
 
 
             int train = 0;
-            while(train++ < 10000) {
+            while(train++ < 50000) {
                 cout << endl;
                 cout << "----------------------" << endl;
                 cout << "Training iteration " << train << endl;
@@ -159,10 +159,8 @@ class Perceptron
                 cout << endl;
                 // Pick random values in training set
                 int rand_training_set = distr(eng);
-                //const std::vector<T>& training_in = training_in_values[rand_training_set];
-                //const std::vector<T>& training_out = training_out_values[rand_training_set];
-                const std::vector<T>& training_in = training_in_values[(train-1)%4];
-                const std::vector<T>& training_out = training_out_values[(train-1)%4];
+                const std::vector<T>& training_in = training_in_values[rand_training_set];
+                const std::vector<T>& training_out = training_out_values[rand_training_set];
                 cout << "Training with:" << endl;
                 cout << "\tinput " << rand_training_set << ": " << training_in << endl;
                 cout << "\toutput " << rand_training_set << ": " << training_out << endl;

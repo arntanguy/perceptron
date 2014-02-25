@@ -98,14 +98,10 @@ int main(int argc, char **argv)
     cout << "=====================" << endl;
     cout << "Training Perceptron" << endl; 
     cout << "=====================" << endl;
-    perceptron.setWeights( {{0.25, -0.25, 0.25, -0.35, 0.25, 0.25},
-                            {0.25, -0.35, -0.35, 0.15, -0.25, 0.15},
-                            {0.5, 0.5, 0.35}} );
-    //perceptron.setWeights( {{0.25, -0.35, 0.25, -0.25, 0.25,  0.25} ,
-    //                        {0.25, 0.15, -0.35,  -0.35, -0.25, 0.15},
-    //                        {0.5, 0.5, 0.35}});
-                            
-    //perceptron.initRandomWeights();
+    //perceptron.setWeights( {{0.25, -0.25, 0.25, -0.35, 0.25, 0.25},
+    //                        {0.25, -0.35, -0.35, 0.15, -0.25, 0.15},
+    //                        {0.5, 0.5, 0.35}} );
+    perceptron.initRandomWeights();
     cout << endl;
     cout << "Perceptron before training" << endl;
     perceptron.run(perceptronKernel);

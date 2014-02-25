@@ -93,13 +93,13 @@ void kernel perceptron_train_update_weights(
     private const float val = pred_values[global_id % out_layer_s];
 
     // XXX to change
-    private const float epsilon = 10.;
+    private const float epsilon = 1.;
     printf("global_id: %i\n", global_id);
     printf("delta: %f\n", delta[global_id]);
     printf("val: %f\n", val);
     printf("id: %i\n", global_id % out_layer_s);
     // For each weight
-    weights[global_id] += epsilon * delta[global_id / out_layer_s] * val; 
+    weights[global_id] += epsilon * delta[global_id /out_layer_s] * val; 
 }
 
 /**
