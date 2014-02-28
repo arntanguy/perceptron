@@ -110,12 +110,13 @@ int main(int argc, char **argv)
     cout << endl;
 
     const float epsilon = 1.f;
-    const float confidence = 0.8f;
+    const float confidence = 0.7f;
+    const int max_iter = 1000000;
     perceptron.train(perceptronKernel, perceptronTrainOutputKernel,
                      perceptronTrainBackpropagate, perceptronTrainUpdateWeights,
                      {{0., 0.}, {0., 1.}, {1., 0.}, {1., 1.}},
                      {{0.}, {1.}, {1.}, {0.}}, 
-                     epsilon, confidence);
+                     epsilon, confidence, max_iter);
 
     cout << "____________________________________________" << endl;
     cout << "___________  Training Finished      ________" << endl;

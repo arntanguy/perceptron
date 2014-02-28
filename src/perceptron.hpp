@@ -175,10 +175,10 @@ class Perceptron
             while(train++ < max_iterations && !hasConverged) {
                 // Pick random values in training set
                 int rand_training_set = distr(eng);
-                //const std::vector<T>& training_in = training_in_values[rand_training_set];
-                //const std::vector<T>& training_out = training_out_values[rand_training_set];
-                const std::vector<T>& training_in = training_in_values[(train-1)%4];
-                const std::vector<T>& training_out = training_out_values[(train-1)%4];
+                const std::vector<T>& training_in = training_in_values[rand_training_set];
+                const std::vector<T>& training_out = training_out_values[rand_training_set];
+                //const std::vector<T>& training_in = training_in_values[(train-1)%4];
+                //const std::vector<T>& training_out = training_out_values[(train-1)%4];
 
                 /**
                  * Step 1.1: Compute output o
