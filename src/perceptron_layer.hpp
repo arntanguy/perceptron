@@ -127,7 +127,6 @@ class NeuronLayer
         }
 
         void setValues(const std::vector<T>& init) {
-            //cout << "setValues" << endl;
             // Do not replace bias
             if(init.size() != m_size-1) {
                 throw std::runtime_error("Your initializer list for values exceeds the maximum size!");
@@ -142,7 +141,6 @@ class NeuronLayer
         }
 
         void setValues(const std::list<T>& init) {
-            //cout << "setValues" << endl;
             // Do not replace bias
             if(init.size() != m_size-1) {
                 throw std::runtime_error("Your initializer list for values exceeds the maximum size!");
@@ -161,8 +159,6 @@ class NeuronLayer
         }
 
         void setWeights(const std::list<T>& weights_list) {
-            //cout << "MSIZE: " << m_size << endl;
-            //cout << "OSIZE: " << m_out_size << endl;
             if(m_out_layer != nullptr && weights_list.size() != m_size * (m_out_size-1)) {
                 throw std::runtime_error("Your initializer list for weights exceeds the maximum size!");
             }
@@ -187,8 +183,6 @@ class NeuronLayer
 
         void enqueueWriteBuffers()
         {
-            //std::cout << "enqueueWriteBuffers, m_size: "<< m_size<<" m_out_size: "<< m_out_size<<
-            // ", weight size: "<< m_size*m_out_size<<endl;
             // Prepare device memory for each layer
             command_queue.enqueueWriteBuffer(buf_values, CL_TRUE, 0, sizeof(T)*m_size, values);
             command_queue.enqueueWriteBuffer(buf_weights, CL_TRUE, 0, sizeof(T)*m_out_size*m_size, weights);
@@ -228,7 +222,6 @@ class NeuronLayer
                 kernel.setArg(2, buf_values);
                 kernel.setArg(3, buf_weights);
                 kernel.setArg(4, m_out_layer->getValuesBuf());
-                //cout << "Setting up kernel with ND-range " << m_out_size << endl;
                 command_queue.enqueueNDRangeKernel(kernel, cl::NullRange,cl::NDRange(m_out_size-1),cl::NullRange);
                 command_queue.finish();
             } else {
@@ -238,7 +231,6 @@ class NeuronLayer
 
         void enqueueTrainOutputLayer(cl::Kernel &kernel, cl::Buffer& expected_out_buf, cl::Buffer& delta_out_buf) {
 
-            //cout << "enqueueTrainOutputLayer: size " << m_size << endl;
             kernel.setArg(0, buf_values);
             kernel.setArg(1, expected_out_buf);
             kernel.setArg(2, delta_out_buf);
@@ -250,14 +242,12 @@ class NeuronLayer
 
         void enqueueTrainBackpropagate(cl::Kernel &kernel, cl::Buffer& delta_out_buf, cl::Buffer& succ_delta_buf) {
             if(m_out_layer != nullptr) {
-                //cout << "enqueueTrainBackpropagate:: m_size=" << m_size << ", m_out_layer_size= " << m_out_layer->getSize() << endl;
                 kernel.setArg(0, m_size);
                 kernel.setArg(1, m_out_layer->getSize());
                 kernel.setArg(2, buf_values);
                 kernel.setArg(3, buf_weights);
                 kernel.setArg(4, succ_delta_buf);
                 kernel.setArg(5, delta_out_buf);
-                //cout  << "PerceptronLayer::enqueueTrainBackpropagate - running kernel" << endl;
                 command_queue.enqueueNDRangeKernel(kernel, cl::NullRange,cl::NDRange(m_size-1),cl::NullRange);
                 command_queue.finish();
             } else {
@@ -265,16 +255,15 @@ class NeuronLayer
             }
         }
 
-        void enqueueTrainUpdateWeights(cl::Kernel& kernel, cl::Buffer& delta_buf)
+        void enqueueTrainUpdateWeights(cl::Kernel& kernel, cl::Buffer& delta_buf, const float& epsilon)
         {
             NLayer* prev_layer = getPreviousLayer();
             if(prev_layer != nullptr) {
                 kernel.setArg(0, prev_layer->getSize());
-                kernel.setArg(1, 1.5f);
+                kernel.setArg(1, epsilon);
                 kernel.setArg(2, prev_layer->getValuesBuf());
                 kernel.setArg(3, delta_buf);
                 kernel.setArg(4, prev_layer->getWeightsBuf());
-                //cout  << "PerceptronLayer::enqueueTrainWeights - running kernel with NDRange " << m_size*(m_out_size-1) << endl;
                 if(command_queue.enqueueNDRangeKernel(kernel, cl::NullRange,cl::NDRange((m_size-1)*(prev_layer->getSize())),cl::NullRange) != CL_SUCCESS) throw "fuck";
                 command_queue.finish();
             } else {

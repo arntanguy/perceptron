@@ -147,7 +147,7 @@ class Perceptron
 
         }
 
-        void train(cl::Kernel& kernel, cl::Kernel& train_output_layer_kernel, cl::Kernel& train_backpropagate_kernel, cl::Kernel& train_update_weights_kernel, const std::vector<std::vector<T>>& training_in_values, const std::vector<std::vector<T>>& training_out_values, float confidence=0.8, int max_iterations=100000) {
+        void train(cl::Kernel& kernel, cl::Kernel& train_output_layer_kernel, cl::Kernel& train_backpropagate_kernel, cl::Kernel& train_update_weights_kernel, const std::vector<std::vector<T>>& training_in_values, const std::vector<std::vector<T>>& training_out_values, const float& epsilon, const float& confidence=0.8, const int& max_iterations=100000) {
             // XXX: nothing to ensure weights have been initialized to [-0.5, 0.5]
             if(training_in_values.size() != training_out_values.size()) {
                 throw std::runtime_error("Perceptron::Train - Training input and output size must match!");
@@ -253,7 +253,7 @@ class Perceptron
                 layer = mFirstLayer->getNextLayer();
                 while(layer != nullptr) {
                     cl::Buffer & buf = delta_bufs[++current_buf_num];
-                    layer->enqueueTrainUpdateWeights(train_update_weights_kernel, buf);
+                    layer->enqueueTrainUpdateWeights(train_update_weights_kernel, buf, epsilon);
                     layer = layer->getNextLayer();
                 }
                 

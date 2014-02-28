@@ -109,10 +109,17 @@ int main(int argc, char **argv)
     perceptron.displayAll();
     cout << endl;
 
+    const float epsilon = 1.f;
+    const float confidence = 0.8f;
     perceptron.train(perceptronKernel, perceptronTrainOutputKernel,
                      perceptronTrainBackpropagate, perceptronTrainUpdateWeights,
                      {{0., 0.}, {0., 1.}, {1., 0.}, {1., 1.}},
-                     {{0.}, {1.}, {1.}, {0.}}, 0.8);
+                     {{0.}, {1.}, {1.}, {0.}}, 
+                     epsilon, confidence);
+
+    cout << "____________________________________________" << endl;
+    cout << "___________  Training Finished      ________" << endl;
+    cout << "____________________________________________" << endl;
 
     cout << endl;
     cout << "After training: " << endl;
