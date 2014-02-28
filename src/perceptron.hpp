@@ -9,6 +9,54 @@
 #include <random>
 #include <stack>
 
+/**
+ * Perceptron
+ * ==========
+ *
+ * This class represents a simple fully-connected perceptron.
+ * Each layer is linked to the next by a double linked list, which means
+ * that this class only stores a pointer to the first and last layer of the perceptron.
+ * All other layers can be accessed by following the linked list.
+ *
+ * This class provides all the required functions to 
+ * - Initialize the weights (randomly, manually)
+ * - Set the input values
+ * - Train the perceptron with a training set.
+ *   The training set is composed of:
+ *   * A vector of vectors containing all the input values. There must be as much input values as there are 
+ *   of neurons in the input layer (but for the biais neuron)
+ *   * A vector of vectors containing all the expected output. There must be as much output values as there
+ *   are of neurons in the output layer
+ * 
+ * - Run the perceptron on set inputs.
+ *
+ * How to use
+ * ----------
+ *
+ * Create a perceptron with
+ * Perceptron<float> p;
+ * 
+ * Then create layers with
+ * p.createLayer(20);
+ * p.createLayer(10);
+ * p.createLayer(2);
+ * Where 20, 10, 2 are the number of neurons in each layer.
+ *
+ * Then, initialize the weights:
+ * p.initRandomWeights();
+ *
+ * Upload the data on the GPU/CPU
+ * p.upload();
+ *
+ * Then train the network:
+ * std::vector<std::vector<float>> inputs = {...}
+ * std::vector<std::vector<float>> outputs = {...}
+ * p.train(...);
+ *
+ * That's it, now you can run it by setting the input values:
+ * p.setInputValues(...)
+ * p.run();
+ **/
 template<typename T>
 class Perceptron
 {
