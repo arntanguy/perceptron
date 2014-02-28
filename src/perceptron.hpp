@@ -91,8 +91,6 @@ class Perceptron
             NLayer* layer = mFirstLayer;
             while(layer->getNextLayer() != nullptr) {
                 layer->enqueueRun(kernel);
-                //layer->getNextLayer()->enqueueReadBuffers();
-                //cout << "\nLayer " << layer->getNextLayer() << " (computed): \n" << *layer->getNextLayer() << endl;
                 layer = layer->getNextLayer();
             }
         }
@@ -164,7 +162,6 @@ class Perceptron
             std::vector<cl::Buffer> delta_bufs;
             NLayer *layer = mFirstLayer;
             while(layer != nullptr) {
-                //cout << "Creating delta buffer with " << layer->getSize() << " elements, of size " << sizeof(T) * layer->getSize() << endl;
                 delta_bufs.push_back(cl::Buffer(mContext, CL_MEM_READ_ONLY, sizeof(T) * layer->getSize()));
                 layer = layer->getNextLayer();
             }
@@ -258,9 +255,6 @@ class Perceptron
                 }
                 
             }
-            cout << "____________________________________________" << endl;
-            cout << "___________  Training Finished      ________" << endl;
-            cout << "____________________________________________" << endl;
         }
 };
 

@@ -156,14 +156,6 @@ int main(int argc, char **argv)
     perceptron.enqueueReadAllBuffers();
     perceptron.displayAll();
 
-    cout << endl;
-    cout << "===================" << endl;
-    cout  << "Final result: " << endl;
-    cout << "===================" << endl;
-    perceptron.enqueueReadAllBuffers();
-    perceptron.displayAll();
-
-
     end = std::chrono::system_clock::now();
 
 
