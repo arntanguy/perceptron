@@ -62,10 +62,12 @@ class NeuronLayer
             values[m_size-1] = 1;
             setOutputLayer(out_layer);
         }
-    public:
+
         T* values = nullptr;
         // Weights to the next layer
         T* weights = nullptr;
+
+    public:
 
         NeuronLayer(const cl_int& in_s, const cl::CommandQueue& queue, NeuronLayer* in_layer, NeuronLayer *out_layer) : command_queue(queue), m_size(in_s+1) {
             init(in_layer, out_layer);
@@ -73,6 +75,12 @@ class NeuronLayer
 
         NeuronLayer(const cl_int& in_s, const cl::CommandQueue& queue) : command_queue(queue), m_size(in_s+1), m_out_size(0) {
             init(nullptr, nullptr);
+        }
+
+        ~NeuronLayer() {
+            delete values;
+            delete weights;
+            delete m_out_layer;
         }
 
         void setNumber(int id) {
@@ -86,7 +94,8 @@ class NeuronLayer
             m_out_layer = out_layer;
             if(out_layer != nullptr) {
                 const cl_int& out_size = out_layer->getSize();
-                weights = new T[m_size*out_size];
+                if(weights == nullptr)
+                    weights = new T[m_size*out_size];
                 m_out_size = out_size;
             } else {
                 m_out_size = 0;
@@ -222,7 +231,8 @@ class NeuronLayer
                 kernel.setArg(2, buf_values);
                 kernel.setArg(3, buf_weights);
                 kernel.setArg(4, m_out_layer->getValuesBuf());
-                command_queue.enqueueNDRangeKernel(kernel, cl::NullRange,cl::NDRange(m_out_size-1),cl::NullRange);
+                if(command_queue.enqueueNDRangeKernel(kernel, cl::NullRange,cl::NDRange(m_out_size-1),cl::NullRange) != CL_SUCCESS) 
+                    throw std::runtime_error("PerceptronLayer::enqueueRun - Error running kernel");
                 command_queue.finish();
             } else {
                 throw std::runtime_error("Can't run kernel on a null layer!");
@@ -236,7 +246,7 @@ class NeuronLayer
             kernel.setArg(2, delta_out_buf);
             command_queue.enqueueNDRangeKernel(kernel, cl::NullRange,cl::NDRange(m_size-1),cl::NullRange);
             if(command_queue.finish()!= CL_SUCCESS) {
-                throw std::runtime_error("PerceptronLayer::enqueueTrainOutputLayer - command queue failed to execut");
+                throw std::runtime_error("PerceptronLayer::enqueueTrainOutputLayer - command queue failed to execute");
             }
         }
 
@@ -264,7 +274,8 @@ class NeuronLayer
                 kernel.setArg(2, prev_layer->getValuesBuf());
                 kernel.setArg(3, delta_buf);
                 kernel.setArg(4, prev_layer->getWeightsBuf());
-                if(command_queue.enqueueNDRangeKernel(kernel, cl::NullRange,cl::NDRange((m_size-1)*(prev_layer->getSize())),cl::NullRange) != CL_SUCCESS) throw "fuck";
+                if(command_queue.enqueueNDRangeKernel(kernel, cl::NullRange,cl::NDRange((m_size-1)*(prev_layer->getSize())),cl::NullRange) != CL_SUCCESS) 
+                    throw std::runtime_error("PerceptronLayer::enqueueTrainUpdateWeights - Error running weight update kernel");
                 command_queue.finish();
             } else {
                 throw std::runtime_error("Can't run kernel on a null layer!");

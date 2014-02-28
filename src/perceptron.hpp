@@ -28,6 +28,10 @@ class Perceptron
             mCurrentLayerNumber = layerCount++;
         }
 
+        ~Perceptron() {
+            delete mFirstLayer;
+        }
+
         void initRandomWeights() {
             NLayer *layer = mFirstLayer;
             while(layer->getNextLayer() != nullptr) {
