@@ -3,7 +3,7 @@ PROJECT(${PROJECT_NAME})
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 SET(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 # Path to the cmake module path
-set(CMAKE_MODULE_PATH "/home/arnaud/programmation/CMakeModules")
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules")
 
 SET(SRC src)
 SET(INCLUDE_DIR .)
