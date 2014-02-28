@@ -124,6 +124,16 @@ class Perceptron
             return mCurrentLayer;
         }
 
+        float maxError(const std::vector<T>& expected, float confidence)
+        {
+            mCurrentLayer->enqueueReadValues();
+            T *values = mCurrentLayer->getValues();
+            float max_error = 0.;
+            for(int i=0; i<mCurrentLayer->getSize()-1; i++) {
+                max_error = std::fmax(max_error, std::fabs(values[i] - expected[i]));
+            }
+            return max_error;
+        }
         bool checkOutputAgainstConfidence(const std::vector<T>& expected, float confidence)
         {
             mCurrentLayer->enqueueReadValues();
@@ -166,25 +176,16 @@ class Perceptron
             int train = 0;
             bool hasConverged=false;
             while(train++ < max_iterations && !hasConverged) {
-                //cout << endl;
-                //cout << "----------------------" << endl;
-                //cout << "Training iteration " << train << endl;
-                //cout << "----------------------" << endl;
-                //cout << endl;
                 // Pick random values in training set
                 int rand_training_set = distr(eng);
                 //const std::vector<T>& training_in = training_in_values[rand_training_set];
                 //const std::vector<T>& training_out = training_out_values[rand_training_set];
                 const std::vector<T>& training_in = training_in_values[(train-1)%4];
                 const std::vector<T>& training_out = training_out_values[(train-1)%4];
-                //cout << "Training with:" << endl;
-                //cout << "\tinput " << rand_training_set << ": " << training_in << endl;
-                //cout << "\toutput " << rand_training_set << ": " << training_out << endl;
 
                 /**
                  * Step 1.1: Compute output o
                  **/
-                //cout << "Writing input and expected output to GPU" << endl;
                 // Write input data to GPU. Leave all other parameters unchanged
                 mFirstLayer->setValues(training_in);
                 mFirstLayer->uploadInputValues();
@@ -207,7 +208,9 @@ class Perceptron
 
                         run(kernel);
 
-                        if(!this->checkOutputAgainstConfidence(out_values, confidence)) {
+                        float max_error = maxError(out_values, confidence);
+                        cout << "max_error: " << max_error << " for training value " << i  << " at iteration " << train << endl;
+                        if(max_error > 1.f-confidence) {
                             hasConverged = false;
                             mFirstLayer->setValues(training_in);
                             mFirstLayer->uploadInputValues();
@@ -224,68 +227,36 @@ class Perceptron
                  * Step 1.2: Compute delta_i for the output layer
                  **/
                 // Upload expected output to GPU
-                //cout << "training_out.size: " << training_out.size() << endl;
                 mQueue.enqueueWriteBuffer(training_out_buf, CL_TRUE, 0, sizeof(T)*training_out.size(), training_out.data());
-                //cout << "Computing delta_i for last layer" << endl;
                 // expected out, delta
                 mCurrentLayer->enqueueTrainOutputLayer(train_output_layer_kernel, training_out_buf, delta_out_buf);
-                // XXX: just for debug
-                //T *delta_values = new T[training_out.size()];
-                //mQueue.enqueueReadBuffer(delta_out_buf, CL_TRUE, 0, sizeof(T)*training_out.size(), delta_values);
-                //cout << "delta_i (output layer) = " ;
-                //for(int i=0; i<training_out.size(); i++) {
-                //    cout << delta_values[i] << ", " << endl;
-                //}
-                //cout << endl;
-
-                // Backpropagation
-                //cout << endl;
-                //cout << "---------------" << endl;
-                //cout << "Backpropagation" << endl;
-                //cout << "---------------" << endl;
-                //cout << endl;
-
+                /**
+                 * ----------------
+                 * Back propagation
+                 * ----------------
+                 **/
                 // second to last buffer first
                 int current_buf_num = delta_bufs.size()-1;
                 // Start from second to last layer and move up the layers to the first one
                 NLayer* layer = mCurrentLayer->getPreviousLayer();
                 while(layer != nullptr) {
-                    // XXX: just for debug
-                    //layer->enqueueReadBuffers();
-                    //cout << *layer << endl;
-
                     cl::Buffer& succDeltaBuffer = delta_bufs[current_buf_num];
                     cl::Buffer& currentDeltaBuffer = delta_bufs[--current_buf_num]; 
                     layer->enqueueTrainBackpropagate(train_backpropagate_kernel, currentDeltaBuffer, succDeltaBuffer);
-                    //T *delta_val = new T[layer->getSize()];
-                    //if(mQueue.enqueueReadBuffer(currentDeltaBuffer, CL_TRUE, 0, sizeof(T)*layer->getSize(), delta_val) != CL_SUCCESS) throw std::runtime_error("fuck");
-                    //cout << "delta_i = " ;
-                    //for(int i=0; i<layer->getSize(); i++) {
-                    //    cout << delta_val[i] << ", ";
-                    //}
-                    //cout << endl;
-                    //delete delta_val;
-
                     layer = layer->getPreviousLayer();
                 }
 
                 /**
                  * Update the weights
                  **/
-                //cout << "Updating the weights" << endl;
                 current_buf_num = 0; 
                 layer = mFirstLayer->getNextLayer();
                 while(layer != nullptr) {
-                    //cout << "current buf: " << current_buf_num << endl;
                     cl::Buffer & buf = delta_bufs[++current_buf_num];
                     layer->enqueueTrainUpdateWeights(train_update_weights_kernel, buf);
-                    //layer->getPreviousLayer()->enqueueReadBuffers();
-                    //cout << *layer->getPreviousLayer() << endl;
                     layer = layer->getNextLayer();
                 }
                 
-
-                //cout << "____________________________________________" << endl;
             }
             cout << "____________________________________________" << endl;
             cout << "___________  Training Finished      ________" << endl;

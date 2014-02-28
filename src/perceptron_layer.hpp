@@ -270,9 +270,10 @@ class NeuronLayer
             NLayer* prev_layer = getPreviousLayer();
             if(prev_layer != nullptr) {
                 kernel.setArg(0, prev_layer->getSize());
-                kernel.setArg(1, prev_layer->getValuesBuf());
-                kernel.setArg(2, delta_buf);
-                kernel.setArg(3, prev_layer->getWeightsBuf());
+                kernel.setArg(1, 1.5f);
+                kernel.setArg(2, prev_layer->getValuesBuf());
+                kernel.setArg(3, delta_buf);
+                kernel.setArg(4, prev_layer->getWeightsBuf());
                 //cout  << "PerceptronLayer::enqueueTrainWeights - running kernel with NDRange " << m_size*(m_out_size-1) << endl;
                 if(command_queue.enqueueNDRangeKernel(kernel, cl::NullRange,cl::NDRange((m_size-1)*(prev_layer->getSize())),cl::NullRange) != CL_SUCCESS) throw "fuck";
                 command_queue.finish();

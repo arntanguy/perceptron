@@ -84,6 +84,7 @@ void kernel perceptron_train_backpropagate(
 
 void kernel perceptron_train_update_weights(
         const int out_layer_size,
+        const float epsilon_value,
         global const float *pred_values,
         global const float *delta,
         global float* weights)
@@ -93,7 +94,7 @@ void kernel perceptron_train_update_weights(
     private const float val = pred_values[global_id % out_layer_s];
 
     // XXX to change
-    private const float epsilon = 1.;
+    private const float epsilon = epsilon_value;
     //printf("global_id: %i\n", global_id);
     //printf("delta: %f\n", delta[global_id]);
     //printf("val: %f\n", val);
