@@ -132,20 +132,29 @@ class Perceptron
             }
             return max_error;
         }
-        bool checkOutputAgainstConfidence(const std::vector<T>& expected, float confidence)
-        {
-            mCurrentLayer->enqueueReadValues();
-            T *values = mCurrentLayer->getValues();
-            float max_error = 0.;
-            for(int i=0; i<mCurrentLayer->getSize()-1; i++) {
-                max_error = std::fmax(max_error, std::fabs(values[i] - expected[i]));
-            }
-            cout << "max error: " << max_error << " <= " << 1.f-confidence << endl;
-            return max_error <= (1.f-confidence);
 
+        bool hasConvergedForAllInputs(cl::Kernel& kernel, const std::vector<std::vector<T>>& training_in_values, const std::vector<std::vector<T>>& training_out_values, const float& confidence)
+        {
+            for(int i=0; i<training_in_values.size(); i++) {
+                const auto& in_values = training_in_values[i];
+                const auto& out_values = training_out_values[i];
+                mFirstLayer->setValues(in_values);
+                mFirstLayer->uploadInputValues();
+
+                this->run(kernel);
+
+                float max_error = maxError(out_values, confidence);
+                if(max_error > 1.f-confidence) {
+                    cout << "max error: " << max_error << endl;
+                    //mFirstLayer->setValues(training_in);
+                    //mFirstLayer->uploadInputValues();
+                    return false;
+                } 
+            }
+            return true;
         }
 
-        void train(cl::Kernel& kernel, cl::Kernel& train_output_layer_kernel, cl::Kernel& train_backpropagate_kernel, cl::Kernel& train_update_weights_kernel, const std::vector<std::vector<T>>& training_in_values, const std::vector<std::vector<T>>& training_out_values, const float& epsilon, const float& confidence=0.8, const int& max_iterations=100000) {
+        bool train(cl::Kernel& kernel, cl::Kernel& train_output_layer_kernel, cl::Kernel& train_backpropagate_kernel, cl::Kernel& train_update_weights_kernel, const std::vector<std::vector<T>>& training_in_values, const std::vector<std::vector<T>>& training_out_values, const float& epsilon, const float& confidence=0.8, const int& max_iterations=100000) {
             // XXX: nothing to ensure weights have been initialized to [-0.5, 0.5]
             if(training_in_values.size() != training_out_values.size()) {
                 throw std::runtime_error("Perceptron::Train - Training input and output size must match!");
@@ -175,10 +184,10 @@ class Perceptron
             while(train++ < max_iterations && !hasConverged) {
                 // Pick random values in training set
                 int rand_training_set = distr(eng);
-                const std::vector<T>& training_in = training_in_values[rand_training_set];
-                const std::vector<T>& training_out = training_out_values[rand_training_set];
-                //const std::vector<T>& training_in = training_in_values[(train-1)%4];
-                //const std::vector<T>& training_out = training_out_values[(train-1)%4];
+                //const std::vector<T>& training_in = training_in_values[rand_training_set];
+                //const std::vector<T>& training_out = training_out_values[rand_training_set];
+                const std::vector<T>& training_in = training_in_values[(train-1)%4];
+                const std::vector<T>& training_out = training_out_values[(train-1)%4];
 
                 /**
                  * Step 1.1: Compute output o
@@ -196,28 +205,14 @@ class Perceptron
                  * algorithm has converged with confidence greater than minimum required
                  **/
                 if(train%100 == 0) {
-                    hasConverged = true;
-                    for(int i=0; i<training_in_values.size(); i++) {
-                        const auto& in_values = training_in_values[i];
-                        const auto& out_values = training_out_values[i];
-                        mFirstLayer->setValues(in_values);
+                    bool hasConverged = hasConvergedForAllInputs(kernel, training_in_values, training_out_values, confidence);
+                    if(hasConverged) {
+                        cout << "Trained in " << train << " iterations, under confidence: " << confidence << endl;
+                        return true;
+                    } else {
+                        mFirstLayer->setValues(training_in);
                         mFirstLayer->uploadInputValues();
-
-                        run(kernel);
-
-                        float max_error = maxError(out_values, confidence);
-                        cout << "max_error: " << max_error << " for training value " << i  << " at iteration " << train << endl;
-                        if(max_error > 1.f-confidence) {
-                            hasConverged = false;
-                            mFirstLayer->setValues(training_in);
-                            mFirstLayer->uploadInputValues();
-                            break;
-                        } 
                     }
-                }
-                if(hasConverged) {
-                    cout << "Trained in " << train << " iterations." << endl;
-                    return;
                 }
 
                 /**
@@ -255,6 +250,7 @@ class Perceptron
                 }
                 
             }
+            return false; 
         }
 };
 

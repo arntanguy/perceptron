@@ -74,12 +74,10 @@ int main(int argc, char **argv)
     // Creates the layers, reserve data on GPU
     perceptron.createLayer(2);
     perceptron.createLayer(2);
-    perceptron.createLayer(2);
+    //perceptron.createLayer(8);
+    //perceptron.createLayer(4);
+    //perceptron.createLayer(2);
     perceptron.createLayer(1);
-    //perceptron.createLayer(100000);
-    //perceptron.createLayer(10000);
-    //perceptron.createLayer(316);
-    //perceptron.createLayer(17);
 
     // Define weights between layers
     //std::list<std::list<cl_float>> weights = {{.1, .2, .3, .4, .5, .06}, // between input layer and hidden_layer1
@@ -109,8 +107,8 @@ int main(int argc, char **argv)
     perceptron.displayAll();
     cout << endl;
 
-    const float epsilon = 1.f;
-    const float confidence = 0.7f;
+    const float epsilon = 1.0f;
+    const float confidence = 0.6f;
     const int max_iter = 1000000;
     perceptron.train(perceptronKernel, perceptronTrainOutputKernel,
                      perceptronTrainBackpropagate, perceptronTrainUpdateWeights,
@@ -121,11 +119,6 @@ int main(int argc, char **argv)
     cout << "____________________________________________" << endl;
     cout << "___________  Training Finished      ________" << endl;
     cout << "____________________________________________" << endl;
-
-    cout << endl;
-    cout << "After training: " << endl;
-    perceptron.enqueueReadAllBuffers();
-    perceptron.displayAll();
 
 
     //// Run the kernel 
