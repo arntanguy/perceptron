@@ -112,7 +112,7 @@ int main(int argc, char **argv)
     perceptron.train(perceptronKernel, perceptronTrainOutputKernel,
                      perceptronTrainBackpropagate, perceptronTrainUpdateWeights,
                      {{0., 0.}, {0., 1.}, {1., 0.}, {1., 1.}},
-                     {{0.}, {1.}, {1.}, {0.}});
+                     {{0.}, {1.}, {1.}, {0.}}, 0.8);
 
     cout << endl;
     cout << "After training: " << endl;

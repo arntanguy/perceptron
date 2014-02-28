@@ -124,7 +124,20 @@ class Perceptron
             return mCurrentLayer;
         }
 
-        void train(cl::Kernel& kernel, cl::Kernel& train_output_layer_kernel, cl::Kernel& train_backpropagate_kernel, cl::Kernel& train_update_weights_kernel, const std::vector<std::vector<T>>& training_in_values, const std::vector<std::vector<T>>& training_out_values) {
+        bool checkOutputAgainstConfidence(const std::vector<T>& expected, float confidence)
+        {
+            mCurrentLayer->enqueueReadValues();
+            T *values = mCurrentLayer->getValues();
+            float max_error = 0.;
+            for(int i=0; i<mCurrentLayer->getSize()-1; i++) {
+                max_error = std::fmax(max_error, std::fabs(values[i] - expected[i]));
+            }
+            cout << "max error: " << max_error << " <= " << 1.f-confidence << endl;
+            return max_error <= (1.f-confidence);
+
+        }
+
+        void train(cl::Kernel& kernel, cl::Kernel& train_output_layer_kernel, cl::Kernel& train_backpropagate_kernel, cl::Kernel& train_update_weights_kernel, const std::vector<std::vector<T>>& training_in_values, const std::vector<std::vector<T>>& training_out_values, float confidence=0.8, int max_iterations=100000) {
             // XXX: nothing to ensure weights have been initialized to [-0.5, 0.5]
             if(training_in_values.size() != training_out_values.size()) {
                 throw std::runtime_error("Perceptron::Train - Training input and output size must match!");
@@ -141,7 +154,7 @@ class Perceptron
             std::vector<cl::Buffer> delta_bufs;
             NLayer *layer = mFirstLayer;
             while(layer != nullptr) {
-                cout << "Creating delta buffer with " << layer->getSize() << " elements, of size " << sizeof(T) * layer->getSize() << endl;
+                //cout << "Creating delta buffer with " << layer->getSize() << " elements, of size " << sizeof(T) * layer->getSize() << endl;
                 delta_bufs.push_back(cl::Buffer(mContext, CL_MEM_READ_ONLY, sizeof(T) * layer->getSize()));
                 layer = layer->getNextLayer();
             }
@@ -151,58 +164,86 @@ class Perceptron
 
 
             int train = 0;
-            while(train++ < 50000) {
-                cout << endl;
-                cout << "----------------------" << endl;
-                cout << "Training iteration " << train << endl;
-                cout << "----------------------" << endl;
-                cout << endl;
+            bool hasConverged=false;
+            while(train++ < max_iterations && !hasConverged) {
+                //cout << endl;
+                //cout << "----------------------" << endl;
+                //cout << "Training iteration " << train << endl;
+                //cout << "----------------------" << endl;
+                //cout << endl;
                 // Pick random values in training set
                 int rand_training_set = distr(eng);
-                const std::vector<T>& training_in = training_in_values[rand_training_set];
-                const std::vector<T>& training_out = training_out_values[rand_training_set];
-                cout << "Training with:" << endl;
-                cout << "\tinput " << rand_training_set << ": " << training_in << endl;
-                cout << "\toutput " << rand_training_set << ": " << training_out << endl;
+                //const std::vector<T>& training_in = training_in_values[rand_training_set];
+                //const std::vector<T>& training_out = training_out_values[rand_training_set];
+                const std::vector<T>& training_in = training_in_values[(train-1)%4];
+                const std::vector<T>& training_out = training_out_values[(train-1)%4];
+                //cout << "Training with:" << endl;
+                //cout << "\tinput " << rand_training_set << ": " << training_in << endl;
+                //cout << "\toutput " << rand_training_set << ": " << training_out << endl;
 
                 /**
                  * Step 1.1: Compute output o
                  **/
-                cout << "Writing input and expected output to GPU" << endl;
+                //cout << "Writing input and expected output to GPU" << endl;
                 // Write input data to GPU. Leave all other parameters unchanged
                 mFirstLayer->setValues(training_in);
                 mFirstLayer->uploadInputValues();
 
                 // Running perceptron kernel to compute the output layer o
-                cout << "Computing the output layer (oi)" << endl;
                 run(kernel);
-                this->enqueueReadAllBuffers();
-                this->displayAll();
+
+
+                /**
+                 * Checks every 100 iteration if 
+                 * algorithm has converged with confidence greater than minimum required
+                 **/
+                if(train%100 == 0) {
+                    hasConverged = true;
+                    for(int i=0; i<training_in_values.size(); i++) {
+                        const auto& in_values = training_in_values[i];
+                        const auto& out_values = training_out_values[i];
+                        mFirstLayer->setValues(in_values);
+                        mFirstLayer->uploadInputValues();
+
+                        run(kernel);
+
+                        if(!this->checkOutputAgainstConfidence(out_values, confidence)) {
+                            hasConverged = false;
+                            mFirstLayer->setValues(training_in);
+                            mFirstLayer->uploadInputValues();
+                            break;
+                        } 
+                    }
+                }
+                if(hasConverged) {
+                    cout << "Trained in " << train << " iterations." << endl;
+                    return;
+                }
 
                 /**
                  * Step 1.2: Compute delta_i for the output layer
                  **/
                 // Upload expected output to GPU
-                cout << "training_out.size: " << training_out.size() << endl;
+                //cout << "training_out.size: " << training_out.size() << endl;
                 mQueue.enqueueWriteBuffer(training_out_buf, CL_TRUE, 0, sizeof(T)*training_out.size(), training_out.data());
-                cout << "Computing delta_i for last layer" << endl;
+                //cout << "Computing delta_i for last layer" << endl;
                 // expected out, delta
                 mCurrentLayer->enqueueTrainOutputLayer(train_output_layer_kernel, training_out_buf, delta_out_buf);
                 // XXX: just for debug
-                T *delta_values = new T[training_out.size()];
-                mQueue.enqueueReadBuffer(delta_out_buf, CL_TRUE, 0, sizeof(T)*training_out.size(), delta_values);
-                cout << "delta_i (output layer) = " ;
-                for(int i=0; i<training_out.size(); i++) {
-                    cout << delta_values[i] << ", " << endl;
-                }
-                cout << endl;
+                //T *delta_values = new T[training_out.size()];
+                //mQueue.enqueueReadBuffer(delta_out_buf, CL_TRUE, 0, sizeof(T)*training_out.size(), delta_values);
+                //cout << "delta_i (output layer) = " ;
+                //for(int i=0; i<training_out.size(); i++) {
+                //    cout << delta_values[i] << ", " << endl;
+                //}
+                //cout << endl;
 
                 // Backpropagation
-                cout << endl;
-                cout << "---------------" << endl;
-                cout << "Backpropagation" << endl;
-                cout << "---------------" << endl;
-                cout << endl;
+                //cout << endl;
+                //cout << "---------------" << endl;
+                //cout << "Backpropagation" << endl;
+                //cout << "---------------" << endl;
+                //cout << endl;
 
                 // second to last buffer first
                 int current_buf_num = delta_bufs.size()-1;
@@ -210,20 +251,20 @@ class Perceptron
                 NLayer* layer = mCurrentLayer->getPreviousLayer();
                 while(layer != nullptr) {
                     // XXX: just for debug
-                    layer->enqueueReadBuffers();
-                    cout << *layer << endl;
+                    //layer->enqueueReadBuffers();
+                    //cout << *layer << endl;
 
                     cl::Buffer& succDeltaBuffer = delta_bufs[current_buf_num];
                     cl::Buffer& currentDeltaBuffer = delta_bufs[--current_buf_num]; 
                     layer->enqueueTrainBackpropagate(train_backpropagate_kernel, currentDeltaBuffer, succDeltaBuffer);
-                    T *delta_val = new T[layer->getSize()];
-                    if(mQueue.enqueueReadBuffer(currentDeltaBuffer, CL_TRUE, 0, sizeof(T)*layer->getSize(), delta_val) != CL_SUCCESS) throw std::runtime_error("fuck");
-                    cout << "delta_i = " ;
-                    for(int i=0; i<layer->getSize(); i++) {
-                        cout << delta_val[i] << ", ";
-                    }
-                    cout << endl;
-                    delete delta_val;
+                    //T *delta_val = new T[layer->getSize()];
+                    //if(mQueue.enqueueReadBuffer(currentDeltaBuffer, CL_TRUE, 0, sizeof(T)*layer->getSize(), delta_val) != CL_SUCCESS) throw std::runtime_error("fuck");
+                    //cout << "delta_i = " ;
+                    //for(int i=0; i<layer->getSize(); i++) {
+                    //    cout << delta_val[i] << ", ";
+                    //}
+                    //cout << endl;
+                    //delete delta_val;
 
                     layer = layer->getPreviousLayer();
                 }
@@ -231,20 +272,20 @@ class Perceptron
                 /**
                  * Update the weights
                  **/
-                cout << "Updating the weights" << endl;
+                //cout << "Updating the weights" << endl;
                 current_buf_num = 0; 
                 layer = mFirstLayer->getNextLayer();
                 while(layer != nullptr) {
-                    cout << "current buf: " << current_buf_num << endl;
+                    //cout << "current buf: " << current_buf_num << endl;
                     cl::Buffer & buf = delta_bufs[++current_buf_num];
                     layer->enqueueTrainUpdateWeights(train_update_weights_kernel, buf);
-                    layer->getPreviousLayer()->enqueueReadBuffers();
-                    cout << *layer->getPreviousLayer() << endl;
+                    //layer->getPreviousLayer()->enqueueReadBuffers();
+                    //cout << *layer->getPreviousLayer() << endl;
                     layer = layer->getNextLayer();
                 }
                 
 
-                cout << "____________________________________________" << endl;
+                //cout << "____________________________________________" << endl;
             }
             cout << "____________________________________________" << endl;
             cout << "___________  Training Finished      ________" << endl;
